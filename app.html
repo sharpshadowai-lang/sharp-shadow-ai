@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sharp Shadow AI — Sports Betting Intelligence</title>
+
+<!-- PWA / Add to Home Screen support -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#020408">
+
+<!-- iOS Home Screen App -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sharp Shadow">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-120.png">
+
+<!-- Android / generic -->
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#020408;--s1:#060d14;--s2:#0a1520;
+  --b1:rgba(0,245,255,.1);--b2:rgba(0,245,255,.2);
+  --cyan:#00f5ff;--cyan2:#00c8d4;
+  --green:#00ff88;--red:#ff2050;--yellow:#f0b429;--purple:#b347ff;
+  --text:#e8f4f8;--muted:#4a7a8a;--muted2:#2a4a5a;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif}
+body{overflow-y:auto}
+
+/* ===== LANDING ===== */
+#landing{display:flex;flex-direction:column;min-height:100vh;background:var(--bg)}
+.land-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--b1);background:rgba(2,4,8,.95)}
+.land-logo{display:flex;align-items:center;gap:10px}
+.land-brand{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:800;letter-spacing:3px;color:var(--cyan)}
+.land-brand span{color:var(--text)}
+.land-nav-btn{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:10px 24px;cursor:pointer;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);transition:.2s}
+.land-nav-btn:hover{background:var(--cyan2)}
+
+.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1;padding:60px 40px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(0,245,255,.04),transparent)}
+.hero-tag{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--cyan);margin-bottom:20px;opacity:.8}
+.hero-h1{font-family:'Orbitron',sans-serif;font-size:clamp(40px,7vw,96px);font-weight:900;line-height:1;letter-spacing:2px;margin-bottom:8px}
+.hero-h1 span{color:var(--cyan);text-shadow:0 0 40px rgba(0,245,255,.4)}
+.hero-sub{font-size:16px;font-weight:500;color:#9ec8d8;max-width:560px;line-height:1.7;margin:20px auto 40px}
+.hero-btns{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}
+.trust-bar{display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.trust-item{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--green);letter-spacing:.5px}
+.hero-btn-main{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:18px 48px;cursor:pointer;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);transition:.25s;position:relative;overflow:hidden}
+.hero-btn-main::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.15));pointer-events:none}
+.hero-btn-main:hover{background:var(--cyan2);box-shadow:0 0 44px rgba(0,245,255,.4);transform:translateY(-2px)}
+.hero-btn-ghost{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;background:transparent;color:var(--cyan);border:1px solid var(--cyan);padding:17px 40px;cursor:pointer;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);transition:.2s}
+.hero-btn-ghost:hover{background:rgba(0,245,255,.06)}
+
+.hero-stats{display:flex;gap:48px;margin-top:48px;padding-top:40px;border-top:1px solid var(--b1)}
+.hs-item{text-align:center}
+.hs-num{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:var(--cyan)}
+.hs-lbl{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:4px}
+
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--b1);border-top:1px solid var(--b1);border-bottom:1px solid var(--b1)}
+.features-4{grid-template-columns:repeat(4,1fr)}
+.feat{padding:32px 28px;background:var(--bg)}
+.feat-icon{font-size:24px;margin-bottom:12px}
+.feat-title{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--cyan);margin-bottom:8px}
+.feat-desc{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7}
+
+.section-head{text-align:center;padding:48px 40px 24px}
+.section-title{font-family:'Orbitron',sans-serif;font-size:clamp(20px,3vw,32px);font-weight:900;letter-spacing:2px}
+.section-title .accent{color:var(--cyan)}
+.section-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:8px}
+
+.how-it-works{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--b1);border-top:1px solid var(--b1);border-bottom:1px solid var(--b1);margin-bottom:8px}
+.hiw-step{padding:28px 24px;background:var(--bg)}
+.hiw-num{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:var(--b2);margin-bottom:8px}
+.hiw-title{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text);margin-bottom:8px}
+.hiw-desc{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7}
+
+.pricing-section{padding:60px 40px;text-align:center}
+
+.homework-section{padding:0 40px 48px;max-width:1100px;margin:0 auto}
+.homework-lead{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);line-height:1.9;max-width:720px;margin:0 auto 40px;text-align:center}
+.homework-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--b1);border:1px solid var(--b1)}
+.homework-item{padding:28px 26px;background:var(--bg)}
+.hw-icon{font-size:26px;margin-bottom:10px}
+.hw-title{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--cyan);margin-bottom:8px}
+.hw-desc{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8}
+.pricing-title{font-family:'Orbitron',sans-serif;font-size:clamp(20px,3vw,32px);font-weight:900;letter-spacing:2px;margin-bottom:8px}
+.pricing-title span{color:var(--cyan)}
+.pricing-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:40px}
+.pricing-cards{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--b1);max-width:700px;margin:0 auto 32px;border:1px solid var(--b1)}
+.pricing-cards-2{max-width:900px}
+.pc-combo-row{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:8px}
+.pc-combo-item{text-align:center}
+.pc-combo-arrow{font-family:'Orbitron',sans-serif;font-size:24px;color:var(--muted);font-weight:900}
+.price-card{background:var(--bg);padding:32px 28px;text-align:center;position:relative}
+.price-card.featured{background:linear-gradient(160deg,var(--bg),rgba(0,245,255,.03))}
+.pc-badge{display:inline-block;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--bg);background:var(--cyan);padding:4px 12px;border-radius:2px;margin-bottom:14px}
+.pc-badge-green{background:var(--green)}
+.pc-price-cents{font-size:0.45em;vertical-align:top;opacity:.7}
+.pc-tag{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
+.pc-name{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;letter-spacing:2px;margin-bottom:12px}
+.pc-price{font-family:'Orbitron',sans-serif;font-size:60px;font-weight:900;color:var(--cyan);line-height:1;margin-bottom:4px;text-shadow:0 0 30px rgba(0,245,255,.3)}
+.pc-period{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:16px}
+.pc-feats{display:flex;flex-direction:column;gap:7px;margin-bottom:24px;text-align:left}
+.pc-feat{font-family:'Share Tech Mono',monospace;font-size:11px;color:#c8dde8;display:flex;align-items:center;gap:8px}
+.pc-feat::before{content:'▸';color:var(--cyan);flex-shrink:0}
+.pc-btn{width:100%;padding:14px;background:var(--cyan);color:var(--bg);border:none;font-family:'Orbitron',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;cursor:pointer;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);transition:.2s}
+.pc-btn:hover{background:var(--cyan2);box-shadow:0 0 30px rgba(0,245,255,.3)}
+.pricing-compare{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.5px}
+.pricing-compare strong{color:var(--green)}
+
+.disclaimer-box{max-width:760px;margin:0 auto;padding:24px 28px;border:1px solid rgba(255,32,80,.25);background:rgba(255,32,80,.04);text-align:center}
+.disclaimer-title{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--red);margin-bottom:12px}
+.disclaimer-text{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:12px}
+.disclaimer-help{font-family:'Share Tech Mono',monospace;font-size:11px;color:#9ec8d8;line-height:1.8}
+.disclaimer-help a{color:var(--cyan)}
+.disclaimer-help strong{color:var(--text)}
+.land-footer{padding:20px 40px;border-top:1px solid var(--b1);text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted2);line-height:1.8}
+
+/* ===== APP ===== */
+#app{display:none;flex-direction:column;height:100vh;overflow:hidden}
+.app-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--b1);background:rgba(2,4,8,.96);flex-shrink:0}
+.app-logo{display:flex;align-items:center;gap:8px;cursor:pointer}
+.app-brand{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--cyan)}
+.app-brand span{color:var(--text)}
+.app-status{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted)}
+.app-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.app-upgrade{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;background:var(--cyan);color:var(--bg);border:none;padding:7px 16px;cursor:pointer;letter-spacing:1px}
+
+.dashboard{display:grid;grid-template-columns:340px 1fr 320px;flex:1;min-height:0}
+
+/* ===== LEFT — SIGNALS ===== */
+.signals-panel{border-right:1px solid var(--b1);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:12px 14px;border-bottom:1px solid var(--b1);background:var(--s1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ph-title{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--cyan)}
+.ph-count{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);background:rgba(0,245,255,.08);padding:2px 8px;border:1px solid rgba(0,245,255,.15)}
+.signal-filters{display:flex;gap:1px;background:var(--b1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.sf-btn{flex:1;padding:7px 4px;background:var(--bg);border:none;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.5px;color:var(--muted);cursor:pointer;transition:.2s}
+.sig-guide{border-bottom:1px solid var(--b1);flex-shrink:0}
+.sig-guide-toggle{width:100%;padding:8px 12px;background:rgba(0,245,255,.04);border:none;display:flex;align-items:center;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan);cursor:pointer;letter-spacing:.5px}
+.sig-guide-toggle:hover{background:rgba(0,245,255,.08)}
+.sig-guide-body{padding:10px 12px;display:flex;flex-direction:column;gap:10px;background:var(--s1)}
+.sig-guide-item{display:flex;flex-direction:column;gap:4px}
+.sig-guide-label{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px}
+.steam-color{color:var(--cyan)}
+.sharp-color{color:var(--green)}
+.reverse-color{color:var(--purple)}
+.sig-guide-desc{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);line-height:1.7}
+.sig-guide-tip{font-family:'Share Tech Mono',monospace;font-size:9px;color:#9ec8d8;line-height:1.7;padding:8px;background:rgba(0,245,255,.04);border-left:2px solid var(--cyan)}
+.sf-btn.active,.sf-btn:hover{background:var(--s1);color:var(--cyan)}
+.signals-list{flex:1;overflow-y:auto;padding:8px}
+.signal-card{background:var(--s1);border:1px solid var(--b1);padding:12px 14px;margin-bottom:6px;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.signal-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.signal-card.steam::before{background:var(--cyan)}
+.signal-card.sharp::before{background:var(--green)}
+.signal-card.reverse::before{background:var(--purple)}
+.signal-card:hover{border-color:var(--b2);background:var(--s2)}
+.sc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.sc-type{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 8px;border:1px solid}
+.sc-type.steam{color:var(--cyan);border-color:rgba(0,245,255,.3);background:rgba(0,245,255,.06)}
+.sc-type.sharp{color:var(--green);border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.06)}
+.sc-type.reverse{color:var(--purple);border-color:rgba(179,71,255,.3);background:rgba(179,71,255,.06)}
+.sc-sport{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted)}
+.sc-game{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.sc-bet{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:8px}
+.sc-mov-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sc-open{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted)}
+.sc-arrow{color:var(--cyan);font-size:11px}
+.sc-cur{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--cyan)}
+.sc-mov{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--green);margin-left:auto}
+.sc-bar-wrap{background:rgba(0,0,0,.3);height:3px;border-radius:2px;overflow:hidden}
+.sc-bar{height:100%;border-radius:2px;transition:width 1s ease;background:linear-gradient(90deg,var(--cyan),var(--green))}
+.sc-footer{display:flex;justify-content:space-between;margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted2)}
+.empty-signals{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:40px 20px;text-align:center;gap:12px}
+.es-icon{font-size:32px}
+.es-title{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--muted)}
+.es-sub{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted2);line-height:1.7}
+
+/* ===== CENTER — S.I.D.E. AI ===== */
+.edge-panel{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--b1)}
+.edge-picks-bar{display:flex;gap:1px;background:var(--b1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.epb-btn{flex:1;padding:8px;background:var(--bg);border:none;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--muted);cursor:pointer;transition:.2s}
+.epb-btn.active,.epb-btn:hover{background:var(--s1);color:var(--cyan)}
+.edge-chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.edge-picks{flex:1;overflow-y:auto;padding:16px;display:none;flex-direction:column;gap:12px}
+.edge-welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;padding:40px 20px;gap:14px}
+.ew-icon{font-size:40px}
+.ew-title{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:800;letter-spacing:2px;color:var(--cyan)}
+.ew-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;max-width:320px}
+.ew-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px}
+.ew-chip{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--cyan);background:rgba(0,245,255,.06);border:1px solid rgba(0,245,255,.2);padding:6px 14px;cursor:pointer;transition:.2s}
+.ew-chip:hover{background:rgba(0,245,255,.12)}
+.msg{display:flex;flex-direction:column;gap:4px;max-width:85%}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.msg.bot{align-self:flex-start;align-items:flex-start}
+.msg-bubble{padding:10px 14px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.msg.user .msg-bubble{background:rgba(0,245,255,.1);border:1px solid rgba(0,245,255,.2);color:var(--text)}
+.msg.bot .msg-bubble{background:var(--s1);border:1px solid var(--b1);color:#c8dde8}
+.msg-time{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted2)}
+.typing-dots{display:flex;gap:4px;padding:12px 14px;background:var(--s1);border:1px solid var(--b1)}
+.typing-dots span{width:5px;height:5px;background:var(--cyan);border-radius:50%;animation:bounce .9s ease infinite}
+.typing-dots span:nth-child(2){animation-delay:.15s}
+.typing-dots span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-5px);opacity:1}}
+.edge-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--b1);background:var(--s1);flex-shrink:0}
+.edge-input{flex:1;background:var(--bg);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:10px 14px;outline:none}
+.edge-input:focus{border-color:var(--cyan)}
+.edge-send{background:var(--cyan);color:var(--bg);border:none;font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:10px 20px;cursor:pointer;transition:.2s;flex-shrink:0}
+.edge-send:hover{background:var(--cyan2)}
+.pick-card{background:var(--s1);border:1px solid var(--b1);padding:16px;border-left:3px solid var(--cyan)}
+.pc-pick-tag{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--cyan);background:rgba(0,245,255,.08);padding:2px 10px;border:1px solid rgba(0,245,255,.2);display:inline-block;margin-bottom:8px}
+.pc-pick-game{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+.pc-pick-pick{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:8px}
+.pc-pick-body{font-family:'Share Tech Mono',monospace;font-size:10px;color:#9ec8d8;line-height:1.7;white-space:pre-wrap}
+.pc-pick-rec{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:800;padding:4px 14px;border:none;cursor:pointer;margin-top:10px}
+
+/* ===== RIGHT — LIVE ODDS ===== */
+.odds-panel{display:flex;flex-direction:column;overflow:hidden}
+.odds-filters{display:flex;flex-wrap:wrap;gap:1px;background:var(--b1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.of-btn{flex:1 1 18%;min-width:54px;padding:7px 3px;background:var(--bg);border:none;font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;transition:.2s}
+.of-btn.active,.of-btn:hover{background:var(--s1);color:var(--cyan)}
+.odds-list{flex:1;overflow-y:auto;padding:8px}
+.odds-card{background:var(--s1);border:1px solid var(--b1);margin-bottom:6px;overflow:hidden}
+.oc-header{padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--b1)}
+.oc-sport{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan);letter-spacing:1px}
+.oc-game{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--text)}
+.oc-time{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted)}
+.oc-lines{padding:8px 12px}
+.oc-books-row{display:grid;grid-template-columns:70px repeat(4,1fr);gap:2px;margin-bottom:2px}
+.oc-book-hdr{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted2);text-align:center}
+.oc-team-row{display:grid;grid-template-columns:70px repeat(4,1fr);gap:2px;margin-bottom:2px}
+.oc-team{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);overflow:hidden;white-space:nowrap;display:flex;align-items:center}
+.oc-odd{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;text-align:center;padding:3px 2px;background:var(--bg);color:var(--text)}
+.oc-odd.best{color:var(--green)}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;display:none}
+.modal-box{background:var(--bg);border:1px solid var(--b2);max-width:480px;width:100%;padding:36px 32px;position:relative}
+.modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1}
+.modal-eyebrow{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--cyan);margin-bottom:8px}
+.modal-title{font-family:'Orbitron',sans-serif;font-size:24px;font-weight:900;letter-spacing:2px;margin-bottom:6px}
+.modal-title span{color:var(--cyan)}
+.modal-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.modal-plan-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.mpl{background:var(--s1);border:1px solid var(--b2);padding:14px;text-align:center;cursor:pointer;transition:.2s}
+.mpl:hover,.mpl.active{border-color:var(--cyan);background:rgba(0,245,255,.04)}
+.mpl-name{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px}
+.mpl-price{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:var(--cyan);line-height:1}
+.mpl-per{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px}
+.mpl-badge{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan);letter-spacing:1px;margin-bottom:4px}
+.modal-feats{display:flex;flex-direction:column;gap:7px;margin-bottom:20px}
+.modal-feat{font-family:'Share Tech Mono',monospace;font-size:11px;color:#c8dde8;display:flex;align-items:center;gap:8px}
+.modal-feat::before{content:'▸';color:var(--cyan)}
+.modal-btn{width:100%;padding:16px;background:var(--cyan);color:var(--bg);border:none;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;cursor:pointer;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);transition:.2s;margin-bottom:10px}
+.modal-btn:hover{background:var(--cyan2);box-shadow:0 0 36px rgba(0,245,255,.3)}
+.modal-note{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted2);text-align:center;letter-spacing:.5px}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s1);border:1px solid var(--b2);padding:12px 24px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text);z-index:9999;transition:transform .3s ease;white-space:nowrap;border-top:2px solid var(--cyan)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+
+@media(max-width:1100px){
+  .dashboard{grid-template-columns:1fr}
+  .odds-panel,.signals-panel{display:none}
+  .edge-panel{border-right:none}
+}
+@media(max-width:768px){
+  .hero-stats{gap:24px;flex-wrap:wrap}
+  .pricing-cards{grid-template-columns:1fr}
+  .pricing-cards-2{grid-template-columns:1fr}
+  .pc-combo-row{flex-direction:column;gap:8px}
+  .pc-combo-arrow{transform:rotate(90deg)}
+  .features{grid-template-columns:1fr}
+  .features-4{grid-template-columns:1fr}
+  .how-it-works{grid-template-columns:1fr}
+  .homework-grid{grid-template-columns:1fr}
+}
+@media(max-width:980px) and (min-width:769px){
+  .features-4{grid-template-columns:repeat(2,1fr)}
+  .how-it-works{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="landing">
+  <nav class="land-nav">
+    <div class="land-logo">
+      <svg viewBox="0 0 32 32" fill="none" width="28" height="28">
+        <polygon points="16,2 30,9 30,23 16,30 2,23 2,9" stroke="#00f5ff" stroke-width="1.5" fill="none" opacity=".7"/>
+        <path d="M10 16 L16 10 L22 16 L16 22 Z" fill="#00f5ff" opacity=".9"/>
+      </svg>
+      <div class="land-brand">SHARP SHADOW <span>AI</span></div>
+    </div>
+    <button class="land-nav-btn" onclick="openModal()">GET STARTED</button>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-tag">// PROFESSIONAL SHARP MONEY INTELLIGENCE //</div>
+    <h1 class="hero-h1">SHARP<br><span>SHADOW</span> AI</h1>
+    <p class="hero-sub">Stop betting blind. See exactly where sharp money is moving, in real time, across 10+ sportsbooks — then ask S.I.D.E. AI, your built-in research assistant, what to do about it. Hedge funds pay $50,000/year for this kind of data and the hours of homework behind it. Try full access for <strong style="color:var(--cyan)">$4</strong> for 2 days, then just <strong style="color:var(--cyan)">$49.99/month</strong> — or save big with an annual plan for as low as <strong style="color:var(--cyan)">$29.17/month</strong>. Cancel anytime, no contracts.</p>
+    <div class="hero-btns">
+      <button class="hero-btn-main" onclick="selectPlan('trial');openModal()">START 2-DAY TRIAL — $4</button>
+      <button class="hero-btn-ghost" onclick="selectPlan('annual');openModal()">GO ANNUAL — $349.99/YR</button>
+    </div>
+    <div class="trust-bar">
+      <div class="trust-item">✓ $4 for 2-day trial</div>
+      <div class="trust-item">✓ Then $49.99/month</div>
+      <div class="trust-item">✓ Cancel anytime, no contracts</div>
+      <div class="trust-item">✓ 24hr refund on monthly charge</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <div class="section-title">EVERYTHING YOU NEED. <span class="accent">NOTHING YOU DON'T.</span></div>
+    <div class="section-sub">// FOUR TOOLS. ONE DASHBOARD. ZERO GUESSWORK //</div>
+  </div>
+
+  <div class="features features-4">
+    <div class="feat">
+      <div class="feat-icon">🔥</div>
+      <div class="feat-title">LIVE SIGNALS</div>
+      <div class="feat-desc">The instant a sportsbook moves a line fast or against the public, you see it. Steam moves, sharp signals, and reverse line movement — labeled by strength, with the exact side the money is on.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🤖</div>
+      <div class="feat-title">S.I.D.E. AI</div>
+      <div class="feat-desc">Your Sports Intelligence Data Engine. Ask it anything — injuries, matchups, trends, "who wins tonight" — and it searches the live web for current stats before answering. No stale data, ever.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🎯</div>
+      <div class="feat-title">DAILY AI PICKS</div>
+      <div class="feat-desc">Every day, S.I.D.E. AI scans the slate and surfaces its top plays — pick, confidence rating, key stats, and the sharp money angle behind it. Ready before you even open the app.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">BEST LINE + PARLAYS</div>
+      <div class="feat-desc">Compare spreads and moneylines across FanDuel, DraftKings, BetMGM, Caesars and more — instantly see who's offering the best number. Then build a parlay and let S.I.D.E. AI grade the risk.</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <div class="section-title">HOW IT <span class="accent">WORKS</span></div>
+    <div class="section-sub">// FROM SIGNAL TO BET IN UNDER A MINUTE //</div>
+  </div>
+
+  <div class="how-it-works">
+    <div class="hiw-step">
+      <div class="hiw-num">01</div>
+      <div class="hiw-title">WE WATCH THE BOOKS</div>
+      <div class="hiw-desc">Our engine scans odds across 10+ sportsbooks around the clock, tracking every line movement the second it happens.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num">02</div>
+      <div class="hiw-title">SHARP MONEY GETS FLAGGED</div>
+      <div class="hiw-desc">When a line moves fast or against public betting, that's sharp money. We surface it instantly as a signal — one clear side, no guessing.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num">03</div>
+      <div class="hiw-title">S.I.D.E. AI BREAKS IT DOWN</div>
+      <div class="hiw-desc">Tap any signal and ask S.I.D.E. AI to explain it. It pulls live stats, injury news, and context so you understand the "why" behind the move.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num">04</div>
+      <div class="hiw-title">YOU BET WITH AN EDGE</div>
+      <div class="hiw-desc">Check the best line across books, build it into a parlay if you want, and place your bet knowing what the sharps already know.</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <div class="section-title">YOUR HOMEWORK IS <span class="accent">DONE</span></div>
+    <div class="section-sub">// S.I.D.E. AI DOES THE RESEARCH SO YOU DON'T HAVE TO //</div>
+  </div>
+
+  <div class="homework-section">
+    <p class="homework-lead">
+      Serious bettors spend hours every day digging through injury reports, matchup history, weather, line movement, and beat-writer tweets \u2014
+      just to make one informed pick. <strong style="color:var(--cyan)">S.I.D.E. AI does all of that for you, instantly.</strong>
+    </p>
+    <div class="homework-grid">
+      <div class="homework-item">
+        <div class="hw-icon">🧠</div>
+        <div class="hw-title">ASK ANYTHING, GET REAL ANSWERS</div>
+        <div class="hw-desc">"Should I bet the Lakers tonight?" S.I.D.E. AI pulls live injury news, recent form, and matchup trends \u2014 then gives you a straight answer with the reasoning behind it.</div>
+      </div>
+      <div class="homework-item">
+        <div class="hw-icon">⚡</div>
+        <div class="hw-title">PICKS READY BEFORE YOU ASK</div>
+        <div class="hw-desc">Every day, S.I.D.E. AI has already scanned the entire slate and queued up its top plays with confidence ratings \u2014 open the app and they're waiting for you.</div>
+      </div>
+      <div class="homework-item">
+        <div class="hw-icon">📡</div>
+        <div class="hw-title">NEVER MISS A SHARP MOVE</div>
+        <div class="hw-desc">While you're at work, asleep, or watching the game \u2014 we're watching the lines. The moment sharp money moves, it's flagged and waiting in your feed.</div>
+      </div>
+      <div class="homework-item">
+        <div class="hw-icon">💰</div>
+        <div class="hw-title">GET PAID FOR YOUR TIME BACK</div>
+        <div class="hw-desc">What used to take an hour of research per game now takes seconds. Less time digging, more time betting smarter \u2014 and a real shot at protecting your bankroll.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pricing-section" id="pricing-section">
+    <div class="pricing-title">PICK YOUR <span>PLAN</span></div>
+    <div class="pricing-sub">// TRY EVERYTHING FOR $4 · CANCEL ANYTIME · NO CONTRACTS //</div>
+
+    <p style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);max-width:640px;margin:16px auto 32px;line-height:1.8">
+      Both plans include the exact same thing: real time sharp signals, S.I.D.E. AI doing your research around the clock,
+      daily AI picks, the best line finder, and the parlay builder. The only difference is how much you save.
+    </p>
+
+    <div class="pricing-cards pricing-cards-2">
+
+      <div class="price-card featured" style="border-top:2px solid var(--cyan)">
+        <div class="pc-badge">MOST POPULAR</div>
+        <div class="pc-tag" style="color:var(--cyan)">// START HERE //</div>
+        <div class="pc-name" style="color:var(--cyan)">SHARP SHADOW AI</div>
+        <div class="pc-combo-row">
+          <div class="pc-combo-item">
+            <div class="pc-price" style="font-size:48px">$4</div>
+            <div class="pc-period">2-day trial</div>
+          </div>
+          <div class="pc-combo-arrow">→</div>
+          <div class="pc-combo-item">
+            <div class="pc-price" style="font-size:48px">$49<span class="pc-price-cents">.99</span></div>
+            <div class="pc-period">per month after</div>
+          </div>
+        </div>
+        <div class="pc-period" style="margin-top:-4px;margin-bottom:16px">about $1.64/day on the monthly plan</div>
+        <div class="pc-feats">
+          <div class="pc-feat">Full access for 2 days, just $4</div>
+          <div class="pc-feat">Then $49.99/month, cancel anytime</div>
+          <div class="pc-feat">Real time steam move &amp; sharp signals</div>
+          <div class="pc-feat">S.I.D.E. AI — your AI sports betting analyst</div>
+          <div class="pc-feat">Daily AI picks with confidence ratings</div>
+          <div class="pc-feat">Best line finder across 10+ sportsbooks</div>
+          <div class="pc-feat">Parlay builder with AI risk analysis</div>
+          <div class="pc-feat">NFL · NBA · MLB · NHL · MLS · EPL · UCL · Tennis</div>
+          <div class="pc-feat" style="color:var(--green)">24hr refund on your $49.99 monthly charge</div>
+        </div>
+        <button class="pc-btn" onclick="selectPlan('trial');openModal()">START 2-DAY TRIAL — $4</button>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted2);margin-top:12px;letter-spacing:.5px">// THE $4 TRIAL ITSELF IS NON-REFUNDABLE · CANCEL ANYTIME AFTER //</div>
+      </div>
+
+      <div class="price-card">
+        <div class="pc-badge pc-badge-green">SAVE $250/YR</div>
+        <div class="pc-tag">// ANNUAL //</div>
+        <div class="pc-name">ELITE</div>
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;margin-bottom:4px">
+          <div class="pc-price">$349<span class="pc-price-cents">.99</span></div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted)">per year</div>
+        </div>
+        <div class="pc-period">just $29.17/mo — 2.5 months free</div>
+        <div class="pc-feats">
+          <div class="pc-feat">Everything Sharp Shadow AI offers, for a full year</div>
+          <div class="pc-feat">Real time steam move &amp; sharp signals</div>
+          <div class="pc-feat">S.I.D.E. AI — your AI sports betting analyst</div>
+          <div class="pc-feat">Daily AI picks with confidence ratings</div>
+          <div class="pc-feat">Best line finder across 10+ sportsbooks</div>
+          <div class="pc-feat">Parlay builder with AI risk analysis</div>
+          <div class="pc-feat" style="color:var(--green)">Lock in your price for 12 months</div>
+        </div>
+        <button class="pc-btn" onclick="selectPlan('annual');openModal()">GO ANNUAL — $349.99/YR</button>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted2);margin-top:12px;letter-spacing:.5px">// ANNUAL PLAN IS NON-REFUNDABLE //</div>
+      </div>
+
+    </div>
+
+    <div class="pricing-compare">OddsJam $99/mo · BetQL $60/mo · ActionNetwork $60/mo &nbsp;|&nbsp; <strong>Sharp Shadow AI from $29.17/mo with S.I.D.E. AI built in</strong></div>
+  </div>
+
+  <div class="disclaimer-box">
+    <div class="disclaimer-title">⚠️ PLEASE BET RESPONSIBLY</div>
+    <div class="disclaimer-text">
+      Sharp Shadow AI provides data, analysis, and AI-generated opinions for informational and entertainment purposes only.
+      Nothing on this platform is financial advice, and no signal, prediction, or pick — including those generated by S.I.D.E. AI —
+      guarantees a winning outcome. Sports betting involves risk, and you should never bet more than you can afford to lose.
+      You must be 21+ (or the legal age in your jurisdiction) and located where sports betting is legal to use this service.
+    </div>
+    <div class="disclaimer-help">
+      If gambling is no longer fun, or you feel you may have a problem, help is available 24/7:
+      <strong>1-800-GAMBLER</strong> (1-800-426-2537) &nbsp;·&nbsp; <a href="https://www.ncpgambling.org" target="_blank" rel="noopener">ncpgambling.org</a>
+    </div>
+  </div>
+
+  <div class="land-footer">
+    Sharp Shadow AI is for entertainment and informational purposes only. Not financial advice. Must be 21+ and in a jurisdiction where sports betting is legal.<br>
+    Gambling Problem? Call 1-800-522-4700 · <a href="#" style="color:var(--muted)">Terms</a> · <a href="#" style="color:var(--muted)">Privacy</a>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav class="app-nav">
+    <div class="app-logo" onclick="goHome()">
+      <svg viewBox="0 0 32 32" fill="none" width="24" height="24">
+        <polygon points="16,2 30,9 30,23 16,30 2,23 2,9" stroke="#00f5ff" stroke-width="1.5" fill="none" opacity=".7"/>
+        <path d="M10 16 L16 10 L22 16 L16 22 Z" fill="#00f5ff" opacity=".9"/>
+      </svg>
+      <div class="app-brand">SHARP SHADOW <span>AI</span></div>
+    </div>
+    <div class="app-status">
+      <div class="app-dot"></div>
+      <span id="appStatusText">CONNECTING...</span>
+    </div>
+    <button class="app-upgrade" onclick="openModal()">UPGRADE</button>
+    <button onclick="signOut()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">SIGN OUT</button>
+  </nav>
+
+  <div class="dashboard">
+
+    <!-- LEFT: SIGNALS -->
+    <div class="signals-panel">
+      <div class="panel-header">
+        <div class="ph-title">⚡ LIVE SIGNALS</div>
+        <div class="ph-count" id="sigCount">0 ACTIVE</div>
+      </div>
+      <div class="signal-filters">
+        <button class="sf-btn active" onclick="filterSigs(this,'all')">ALL</button>
+        <button class="sf-btn" onclick="filterSigs(this,'steam')">🔥 STEAM</button>
+        <button class="sf-btn" onclick="filterSigs(this,'sharp')">⚡ SHARP</button>
+        <button class="sf-btn" onclick="filterSigs(this,'reverse')">↩ REVERSE</button>
+      </div>
+
+      <!-- HOW TO READ SIGNALS -->
+      <div class="sig-guide">
+        <button class="sig-guide-toggle" onclick="toggleSigGuide()">
+          <span>📖 HOW TO BET THESE SIGNALS</span>
+          <span id="sigGuideArrow">▼</span>
+        </button>
+        <div class="sig-guide-body" id="sigGuideBody" style="display:none">
+          <div class="sig-guide-item">
+            <div class="sig-guide-label steam-color">🔥 STEAM MOVE</div>
+            <div class="sig-guide-desc">Multiple books move the same line fast — sharp money hit hard. <strong>Bet the side shown immediately</strong> before the line moves further against you. This is the strongest signal.</div>
+          </div>
+          <div class="sig-guide-item">
+            <div class="sig-guide-label sharp-color">⚡ SHARP SIGNAL</div>
+            <div class="sig-guide-desc">A single book moved the line — sharp bettors got their money down. <strong>Bet the side shown</strong>. Line will likely follow at other books within minutes.</div>
+          </div>
+          <div class="sig-guide-item">
+            <div class="sig-guide-label reverse-color">↩ REVERSE LINE MOVEMENT</div>
+            <div class="sig-guide-desc">Public is betting one side heavily but the line moved the other way — sharp money is fading the public. <strong>Bet the side shown</strong> (against the public). This is a classic sharp vs public situation.</div>
+          </div>
+          <div class="sig-guide-tip">
+            💡 <strong>Pro tip:</strong> Always check the live odds panel to find the best number across books before placing your bet.
+          </div>
+        </div>
+      </div>
+
+      <div class="signals-list" id="signalsList">
+        <div class="empty-signals">
+          <div class="es-icon">📡</div>
+          <div class="es-title">MONITORING LIVE LINES</div>
+          <div class="es-sub">Tracking <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games across 10+ books.<br>Steam moves appear here instantly<br>when sharp money is detected.<br><br>Best signal times:<br>9am-12pm daily · NFL Sundays<br>Evening before night games</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: S.I.D.E. AI -->
+    <div class="edge-panel">
+      <div class="panel-header">
+        <div class="ph-title">🤖 S.I.D.E. AI</div>
+        <div id="picksDate" class="ph-count" style="display:none"></div>
+      </div>
+      <div class="edge-picks-bar">
+        <button class="epb-btn active" id="epb-chat" onclick="showEdgeView('chat')">⚡ ASK S.I.D.E. AI</button>
+        <button class="epb-btn" id="epb-picks" onclick="showEdgeView('picks')">🎯 DAILY PICKS</button>
+        <button class="epb-btn" id="epb-parlay" onclick="showEdgeView('parlay')">🔗 PARLAY BUILDER</button>
+      </div>
+
+      <!-- CHAT VIEW -->
+      <div id="edgeChatView" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="edge-chat" id="edgeChat">
+          <div class="edge-welcome" id="edgeWelcome">
+            <div class="ew-icon">🤖</div>
+            <div class="ew-title">S.I.D.E. AI</div>
+            <div class="ew-sub">Ask me anything about any game, team, or betting angle. I search the web for real time stats, injuries, and line movement.</div>
+            <div class="ew-chips">
+              <div class="ew-chip" onclick="askEdge('Who will win the NBA game tonight?')">NBA tonight</div>
+              <div class="ew-chip" onclick="askEdge('What are the best MLB bets today?')">MLB today</div>
+              <div class="ew-chip" onclick="askEdge('Explain what a steam move is')">Steam moves</div>
+              <div class="ew-chip" onclick="askEdge('Give me your top 3 picks today')">Top picks</div>
+              <div class="ew-chip" onclick="askEdge('What is reverse line movement?')">Reverse line</div>
+              <div class="ew-chip" onclick="askEdge('NFL week betting angles')">NFL angles</div>
+            </div>
+          </div>
+        </div>
+        <div class="edge-input-row">
+          <input class="edge-input" id="edgeInput" placeholder="Ask S.I.D.E. AI anything..." onkeydown="if(event.key==='Enter')sendEdge()">
+          <button class="edge-send" id="edgeSendBtn" onclick="sendEdge()">SEND</button>
+        </div>
+      </div>
+
+      <!-- PICKS VIEW -->
+      <div id="edgePicksView" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+        <div class="edge-picks" id="edgePicks" style="display:flex">
+          <div class="edge-welcome" id="picksWelcome">
+            <div class="ew-icon">🎯</div>
+            <div class="ew-title">LOADING PICKS...</div>
+            <div class="ew-sub">S.I.D.E. AI is searching for todays games and sharp angles</div>
+            <button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">REFRESH PICKS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARLAY VIEW -->
+      <div id="edgeParlayView" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+        <div style="display:grid;grid-template-columns:1fr 240px;flex:1;overflow:hidden">
+          <div style="overflow-y:auto;padding:12px;border-right:1px solid var(--b1)">
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;color:var(--muted);margin-bottom:10px">SELECT LEGS FROM SIGNALS</div>
+            <div id="parlaySignalList"><div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);text-align:center;padding:20px">No live signals yet</div></div>
+          </div>
+          <div style="overflow-y:auto;padding:12px;background:var(--s1)">
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;color:var(--muted);margin-bottom:10px">YOUR PARLAY</div>
+            <div id="parlayLegs"><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted2);text-align:center;padding:12px">Add legs from signals</div></div>
+            <div id="parlaySummary" style="display:none;background:var(--bg);border:1px solid var(--b1);padding:10px;margin:10px 0">
+              <div style="display:flex;justify-content:space-between;font-family:Share Tech Mono,monospace;font-size:10px;padding:2px 0;color:var(--muted)"><span>LEGS</span><span id="pLegCount" style="color:var(--text)">0</span></div>
+              <div style="display:flex;justify-content:space-between;font-family:Share Tech Mono,monospace;font-size:10px;padding:2px 0;color:var(--muted)"><span>ODDS</span><span id="pOdds" style="color:var(--text)">+0</span></div>
+              <div style="display:flex;justify-content:space-between;font-family:Share Tech Mono,monospace;font-size:10px;padding:2px 0;color:var(--muted)"><span>$100 WINS</span><span id="pPayout" style="color:var(--green)">$0</span></div>
+            </div>
+            <button id="pAnalyzeBtn" onclick="analyzeParlay()" style="display:block;width:100%;padding:10px;background:var(--muted2);color:var(--bg);border:none;font-family:Orbitron,sans-serif;font-size:10px;font-weight:800;cursor:pointer;margin-bottom:6px" disabled>SELECT 2+ LEGS TO ANALYZE</button>
+            <div id="pAnalysis" style="display:none;font-family:Share Tech Mono,monospace;font-size:10px;color:#9ec8d8;line-height:1.6;padding:10px;background:var(--bg);border:1px solid var(--b1);margin-bottom:6px;white-space:pre-wrap"></div>
+            <button onclick="clearParlay()" style="width:100%;padding:8px;background:transparent;border:1px solid var(--b2);color:var(--muted);font-family:Share Tech Mono,monospace;font-size:9px;cursor:pointer">CLEAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: LIVE ODDS -->
+    <div class="odds-panel">
+      <div class="panel-header">
+        <div class="ph-title">📊 LIVE ODDS</div>
+        <div class="ph-count" id="oddsCount">0 GAMES</div>
+      </div>
+      <div class="odds-filters" style="flex-wrap:wrap">
+        <button class="of-btn active" onclick="filterOdds(this,'ALL')">ALL</button>
+        <button class="of-btn" onclick="filterOdds(this,'NFL')">NFL</button>
+        <button class="of-btn" onclick="filterOdds(this,'NBA')">NBA</button>
+        <button class="of-btn" onclick="filterOdds(this,'MLB')">MLB</button>
+        <button class="of-btn" onclick="filterOdds(this,'NHL')">NHL</button>
+        <button class="of-btn" onclick="filterOdds(this,'EPL')">EPL</button>
+        <button class="of-btn" onclick="filterOdds(this,'UCL')">UCL</button>
+        <button class="of-btn" onclick="filterOdds(this,'WORLDCUP')">WORLD CUP</button>
+        <button class="of-btn" onclick="filterOdds(this,'MLS')">MLS</button>
+        <button class="of-btn" onclick="filterOdds(this,'TENNIS')">TENNIS</button>
+      </div>
+      <div class="odds-list" id="oddsList">
+        <div class="empty-signals">
+          <div class="es-icon">📊</div>
+          <div class="es-title">LOADING ODDS...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-eyebrow" id="modalEyebrow">// START HERE //</div>
+    <div class="modal-title">GO FULL <span>SHARP</span></div>
+    <div class="modal-sub" id="modalSub">Try everything for 2 days for $4. After that you'll be billed $49.99/month — cancel anytime, no contracts. The $4 trial is non-refundable, but if you're charged $49.99, you have 24 hours to request a full refund.</div>
+    <div class="modal-plan-row" style="grid-template-columns:1fr">
+      <div class="mpl active" style="cursor:default">
+        <div class="mpl-badge" id="modalBadge">2-DAY TRIAL → MONTHLY</div>
+        <div class="mpl-name">SHARP SHADOW AI</div>
+        <div class="mpl-price" id="modalPrice">$4</div>
+        <div class="mpl-per" id="modalPer">for 2 days, then $49.99/month</div>
+      </div>
+    </div>
+    <div class="modal-feats">
+      <div class="modal-feat">Real time steam move alerts</div>
+      <div class="modal-feat">Sharp vs public money split</div>
+      <div class="modal-feat">Best line across 10+ sportsbooks</div>
+      <div class="modal-feat">S.I.D.E. AI predictions and analysis</div>
+      <div class="modal-feat">Cancel anytime — no contracts</div>
+    </div>
+    <button class="modal-btn" id="modalBtn" onclick="subscribe()">START 2-DAY TRIAL — $4</button>
+    <div class="modal-note" id="modalNote">// $4 TRIAL IS NON-REFUNDABLE · 24HR REFUND ON THE $49.99 CHARGE //</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+var signals = [];
+var allGames = [];
+var currentSigFilter = 'all';
+var currentOddsFilter = 'ALL';
+var currentPlan = 'trial';
+var edgeHistory = [];
+var parlayLegs = [];
+
+// ===== CHECKOUT REDIRECT HANDLING =====
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var checkout = params.get('checkout');
+  var plan = params.get('plan');
+  if(checkout === 'success'){
+    // Save session to localStorage so user stays logged in
+    localStorage.setItem('ss_access', 'true');
+    localStorage.setItem('ss_plan', plan || 'trial');
+    localStorage.setItem('ss_since', Date.now());
+    // Clean up URL
+    window.history.replaceState({}, '', '/');
+    window.addEventListener('DOMContentLoaded', function(){
+      openApp();
+      if(plan === 'annual'){
+        showToast('Welcome to Elite! $349.99/year, locked in for 12 months.');
+      } else {
+        showToast('Trial started! $4 charged for 2 days, then $49.99/month. Cancel anytime after trial.');
+      }
+    });
+  } else if(checkout === 'cancel'){
+    window.history.replaceState({}, '', '/');
+    window.addEventListener('DOMContentLoaded', function(){
+      showToast('Checkout cancelled. No charge was made.');
+    });
+  } else {
+    // Check if user already has access saved in localStorage
+    var hasAccess = localStorage.getItem('ss_access');
+    if(hasAccess === 'true'){
+      window.addEventListener('DOMContentLoaded', function(){
+        openApp();
+      });
+    }
+  }
+})();
+
+// ===== NAVIGATION =====
+function openApp(){
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  loadApp();
+}
+
+function goHome(){
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('landing').style.display = 'flex';
+}
+
+function signOut(){
+  localStorage.removeItem('ss_access');
+  localStorage.removeItem('ss_plan');
+  localStorage.removeItem('ss_since');
+  goHome();
+  showToast('Signed out successfully.');
+}
+
+function openModal(){
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').style.display = 'none';
+}
+
+function selectPlan(plan){
+  currentPlan = plan;
+  var eyebrow = document.getElementById('modalEyebrow');
+  var badge = document.getElementById('modalBadge');
+  var price = document.getElementById('modalPrice');
+  var per = document.getElementById('modalPer');
+  var sub = document.getElementById('modalSub');
+  var btn = document.getElementById('modalBtn');
+  var note = document.getElementById('modalNote');
+
+  if(plan === 'trial'){
+    eyebrow.textContent = '// START HERE //';
+    badge.textContent = '2-DAY TRIAL → MONTHLY';
+    price.textContent = '$4';
+    per.textContent = 'for 2 days, then $49.99/month';
+    sub.textContent = 'Try everything for 2 days for $4. After that you will be billed $49.99/month — cancel anytime, no contracts. The $4 trial is non-refundable, but if you are charged $49.99, you have 24 hours to request a full refund.';
+    btn.textContent = 'START 2-DAY TRIAL — $4';
+    note.textContent = '// $4 TRIAL IS NON-REFUNDABLE · 24HR REFUND ON THE $49.99 CHARGE //';
+  } else if(plan === 'annual'){
+    eyebrow.textContent = '// ANNUAL ELITE //';
+    badge.textContent = 'SAVE $250/YEAR';
+    price.textContent = '$349.99';
+    per.textContent = 'per year, just $29.17/mo';
+    sub.textContent = 'Lock in the best price for a full year — 2.5 months free compared to monthly. Your price is locked for 12 months.';
+    btn.textContent = 'GO ANNUAL — $349.99/YR';
+    note.textContent = '// SECURE PAYMENT · ANNUAL PLAN IS NON-REFUNDABLE //';
+  }
+}
+
+async function subscribe(){
+  var btn = document.getElementById('modalBtn');
+  var originalText = btn.textContent;
+  btn.textContent = 'REDIRECTING...';
+  btn.disabled = true;
+  try{
+    var endpoint = currentPlan === 'annual' ? '/api/checkout/annual' : '/api/checkout/trial';
+    var r = await fetch('http://localhost:3001' + endpoint, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        success_url: window.location.origin,
+        cancel_url: window.location.origin
+      })
+    });
+    var data = await r.json();
+    if(data.url){
+      window.location.href = data.url;
+    } else {
+      showToast('Checkout error: ' + (data.error || 'Unknown error'));
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  } catch(e){
+    showToast('Connection error. Make sure the server is running.');
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+// ===== TOAST =====
+function showToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');}, 3000);
+}
+
+// ===== LOAD APP =====
+async function loadApp(){
+  fetchSignals();
+  loadOdds('ALL');
+  setInterval(fetchSignals, 60000);
+  // Auto load picks in background
+  setTimeout(function(){ loadPicks(); }, 500);
+  // Animate hero stats
+  animCount('hs1', 34, '', 1200);
+}
+
+function animCount(id, target, suffix, duration){
+  var el = document.getElementById(id);
+  if(!el) return;
+  var start = 0;
+  var step = target / (duration / 16);
+  var timer = setInterval(function(){
+    start += step;
+    if(start >= target){start = target; clearInterval(timer);}
+    el.textContent = Math.floor(start) + suffix;
+  }, 16);
+}
+
+// ===== SIGNALS =====
+async function fetchSignals(){
+  try{
+    var r = await fetch('http://localhost:3001/api/signals');
+    var d = await r.json();
+    allGames = d.games || 0;
+    // Update status
+    var statusEl = document.getElementById('appStatusText');
+    if(statusEl) statusEl.textContent = 'LIVE · ' + (d.games || 0) + ' GAMES';
+    var lgc = document.getElementById('liveGameCount');
+    if(lgc) lgc.textContent = (d.games || 0);
+    // Update hero stats
+    var hs2 = document.getElementById('hs2');
+    if(hs2) hs2.textContent = d.games || 0;
+    var oddsCount = document.getElementById('oddsCount');
+    if(oddsCount) oddsCount.textContent = (d.games || 0) + ' GAMES';
+    if(d.signals && d.signals.length > 0){
+      signals = d.signals;
+      renderSignals();
+      var sc = document.getElementById('sigCount');
+      if(sc) sc.textContent = signals.length + ' ACTIVE';
+      var hs1 = document.getElementById('hs1');
+      if(hs1) hs1.textContent = signals.length;
+    } else {
+      showEmptySignals();
+    }
+  }catch(e){
+    var statusEl = document.getElementById('appStatusText');
+    if(statusEl) statusEl.textContent = 'SERVER OFFLINE';
+  }
+}
+
+function showEmptySignals(){
+  var list = document.getElementById('signalsList');
+  if(!list) return;
+  list.innerHTML = '<div class="empty-signals"><div class="es-icon">📡</div><div class="es-title">SCANNING ' + allGames + ' LIVE GAMES</div><div class="es-sub">Monitoring line movement across<br>10+ sportsbooks in real time.<br>Signals appear when sharp money<br>is detected.</div></div>';
+}
+
+function toggleSigGuide(){
+  var body = document.getElementById('sigGuideBody');
+  var arrow = document.getElementById('sigGuideArrow');
+  if(body.style.display === 'none'){
+    body.style.display = 'flex';
+    arrow.textContent = '▲';
+  } else {
+    body.style.display = 'none';
+    arrow.textContent = '▼';
+  }
+}
+
+function filterSigs(btn, type){
+  document.querySelectorAll('.sf-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  currentSigFilter = type;
+  renderSignals();
+}
+
+function renderSignals(){
+  var list = document.getElementById('signalsList');
+  if(!list) return;
+  var filtered = currentSigFilter === 'all' ? signals : signals.filter(function(s){return s.type === currentSigFilter;});
+  if(filtered.length === 0){
+    showEmptySignals();
+    return;
+  }
+  list.innerHTML = filtered.map(function(s, i){
+    return '<div class="signal-card ' + s.type + '" onclick="askEdge(\'Tell me about the ' + s.game + ' ' + s.bet + ' signal and whether I should bet it\')">' +
+      '<div class="sc-top"><div class="sc-type ' + s.type + '">' + s.type.toUpperCase() + '</div><div class="sc-sport">' + s.sport + '</div></div>' +
+      '<div class="sc-game">' + s.game + '</div>' +
+      '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">SHARP ACTION ON</div>' +
+      '<div class="sc-bet">▸ ' + s.bet + '</div>' +
+      '<div class="sc-bet-label" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">LINE MOVED</div>' +
+      '<div class="sc-mov-row"><span class="sc-open">' + s.open + '</span><span class="sc-arrow">→</span><span class="sc-cur">' + s.cur + '</span><span class="sc-mov" style="color:var(--green)">' + s.mov + '</span></div>' +
+      '<div class="sc-sharp-pct" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin:4px 0">' + (s.mfor||0) + '% OF MONEY ON THIS SIDE</div>' +
+      '<div class="sc-bar-wrap"><div class="sc-bar" data-w="' + (s.pct||60) + '" style="width:0%"></div></div>' +
+      '<div class="sc-footer"><span>' + (s.books ? s.books[0] : '') + '</span><span>' + (s.ago || 0) + 'm ago</span></div>' +
+    '</div>';
+  }).join('');
+  // Animate bars
+  setTimeout(function(){
+    list.querySelectorAll('.sc-bar').forEach(function(b){b.style.width = (b.dataset.w||60) + '%';});
+  }, 100);
+}
+
+// ===== S.I.D.E. AI =====
+function showEdgeView(view){
+  document.getElementById('edgeChatView').style.display = 'none';
+  document.getElementById('edgePicksView').style.display = 'none';
+  document.getElementById('edgeParlayView').style.display = 'none';
+  document.querySelectorAll('.epb-btn').forEach(function(b){b.classList.remove('active');});
+
+  if(view === 'chat'){
+    document.getElementById('edgeChatView').style.display = 'flex';
+    document.getElementById('epb-chat').classList.add('active');
+  } else if(view === 'picks'){
+    document.getElementById('edgePicksView').style.display = 'flex';
+    document.getElementById('epb-picks').classList.add('active');
+  } else if(view === 'parlay'){
+    document.getElementById('edgeParlayView').style.display = 'flex';
+    document.getElementById('epb-parlay').classList.add('active');
+    renderParlaySignals();
+  }
+}
+
+function askEdge(msg){
+  showEdgeView('chat');
+  var input = document.getElementById('edgeInput');
+  if(input) input.value = msg;
+  sendEdge();
+}
+
+function sendEdge(){
+  var input = document.getElementById('edgeInput');
+  var msg = input ? input.value.trim() : '';
+  if(!msg) return;
+  var welcome = document.getElementById('edgeWelcome');
+  if(welcome) welcome.style.display = 'none';
+  input.value = '';
+  var btn = document.getElementById('edgeSendBtn');
+  if(btn){btn.disabled = true; btn.textContent = '...';}
+  addMsg(msg, 'user');
+  var typing = addTyping();
+  edgeHistory.push({role:'user',content:msg});
+  var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.type+', moved '+s.mov+')';}).join(', ');
+  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the most powerful sports betting analyst. Today is June 12 2026. You have live web search. Search for current games and injuries. Give sharp confident predictions with real stats. Current signals: ' + sigCtx;
+  fetch('http://localhost:3001/api/edge', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:edgeHistory})
+  }).then(function(r){return r.json();}).then(function(data){
+    var reply = data.content ? data.content.map(function(c){return c.text||'';}).join('') : 'No response';
+    edgeHistory.push({role:'assistant',content:reply});
+    if(typing) typing.remove();
+    addMsg(reply, 'bot');
+    if(btn){btn.disabled = false; btn.textContent = 'SEND';}
+  }).catch(function(e){
+    if(typing) typing.remove();
+    addMsg('Connection error. Make sure server is running.', 'bot');
+    if(btn){btn.disabled = false; btn.textContent = 'SEND';}
+  });
+}
+
+function addMsg(text, role){
+  var chat = document.getElementById('edgeChat');
+  if(!chat) return null;
+  var div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = '<div class="msg-bubble">' + text + '</div><div class="msg-time">' + new Date().toLocaleTimeString() + '</div>';
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function addTyping(){
+  var chat = document.getElementById('edgeChat');
+  if(!chat) return null;
+  var div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+// ===== DAILY PICKS =====
+async function loadPicks(){
+  var container = document.getElementById('edgePicks');
+  if(!container) return;
+  var welcome = document.getElementById('picksWelcome');
+  if(welcome) welcome.style.display = 'none';
+  var dateEl = document.getElementById('picksDate');
+  var now = new Date();
+  var todayLabel = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  var timeLabel = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if(dateEl){ dateEl.textContent = '📅 ' + todayLabel + ' · ' + timeLabel; dateEl.style.display = 'block'; }
+  var loading = document.createElement('div');
+  loading.id = 'picksLoading';
+  loading.className = 'edge-welcome';
+  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">ANALYZING TODAYS GAMES...</div><div class="ew-sub">Searching for current games and sharp angles</div>';
+  container.appendChild(loading);
+  try{
+    var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    var r = await fetch('http://localhost:3001/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst with live web search. Search for todays games (' + today + '). Give TOP 3 best bets. For each: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [stats] | SHARP ANGLE: [money] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Top 3 best bets today, ' + today + '. Search current games and give real predictions with stats.'}]})});
+    var data = await r.json();
+    var text = data.content ? data.content.map(function(c){return c.text||'';}).join('') : '';
+    var loading2 = document.getElementById('picksLoading');
+    if(loading2) loading2.remove();
+    var picks = text.split('---').filter(function(p){return p.trim().length > 20;});
+    if(picks.length === 0){container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:16px;white-space:pre-wrap">'+text+'</div>';return;}
+    container.innerHTML = picks.map(function(p){
+      var game='',pick='',conf='70%',rec='ANALYZE';
+      p.split('|').forEach(function(part){
+        var t=part.trim();
+        if(t.indexOf('GAME:')>-1)game=t.replace('GAME:','').trim();
+        if(t.indexOf('PICK:')>-1)pick=t.replace('PICK:','').trim();
+        if(t.indexOf('CONFIDENCE:')>-1)conf=t.replace('CONFIDENCE:','').trim();
+        if(t.indexOf('RECOMMENDATION:')>-1)rec=t.replace('RECOMMENDATION:','').trim();
+      });
+      var isBet=rec.toUpperCase().indexOf('BET')>-1;
+      return '<div class="pick-card"><div class="pc-pick-tag">S.I.D.E. AI PICK · '+conf+'</div><div class="pc-pick-game">'+game+'</div><div class="pc-pick-pick">'+pick+'</div><div class="pc-pick-body">'+p.trim()+'</div><button class="pc-pick-rec" style="background:'+(isBet?'var(--green)':'var(--red)')+';color:var(--bg)">'+rec+'</button></div>';
+    }).join('');
+  }catch(e){
+    container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--red);text-align:center;padding:40px">Error: '+e.message+'</div>';
+  }
+}
+
+// ===== PARLAY BUILDER =====
+function renderParlaySignals(){
+  var el = document.getElementById('parlaySignalList');
+  if(!el) return;
+  if(!signals||signals.length===0){el.innerHTML='<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);text-align:center;padding:12px">No live signals yet</div>';return;}
+  el.innerHTML=signals.slice(0,15).map(function(s,i){
+    var sel=parlayLegs.findIndex(function(l){return l.id===s.id;})>-1;
+    return '<div onclick="toggleLeg('+i+')" style="background:'+(sel?'rgba(0,245,255,.06)':'var(--s1)')+';border:1px solid '+(sel?'var(--cyan)':'var(--b1)')+';padding:8px 10px;cursor:pointer;margin-bottom:4px;display:flex;align-items:center;gap:8px"><div style="width:14px;height:14px;border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--cyan)">'+(sel?'✓':'')+'</div><div style="flex:1"><div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;color:var(--text)">'+s.game+'</div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--cyan)">'+s.bet+'</div></div></div>';
+  }).join('');
+}
+
+function toggleLeg(idx){
+  var sig=signals[idx];if(!sig)return;
+  var ex=parlayLegs.findIndex(function(l){return l.id===sig.id;});
+  if(ex>-1){parlayLegs.splice(ex,1);}else{if(parlayLegs.length>=8){showToast('Maximum 8 legs');return;}parlayLegs.push(sig);}
+  renderParlaySignals();updateParlayUI();
+}
+
+function updateParlayUI(){
+  var el=document.getElementById('parlayLegs'),sum=document.getElementById('parlaySummary'),btn=document.getElementById('pAnalyzeBtn');
+  if(!el)return;
+  if(parlayLegs.length===0){
+    el.innerHTML='<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted2);text-align:center;padding:12px">Click signals on the left to add legs</div>';
+    if(sum)sum.style.display='none';
+    if(btn){btn.disabled=true;btn.style.background='var(--muted2)';btn.style.cursor='default';btn.textContent='SELECT 2+ LEGS TO ANALYZE';}
+    return;
+  }
+  el.innerHTML=parlayLegs.map(function(s,i){return '<div style="background:var(--bg);border:1px solid var(--b2);padding:7px 8px;display:flex;align-items:center;justify-content:space-between;margin-bottom:3px"><div><div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;color:var(--text)">'+s.game+'</div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--cyan)">'+s.bet+'</div></div><button onclick="removeLeg('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer">✕</button></div>';}).join('');
+  var d=1;for(var i=0;i<parlayLegs.length;i++)d*=2.1;
+  var ao=Math.round((d-1)*100),py=Math.round((d-1)*100);
+  sum.style.display='block';
+  var lc=document.getElementById('pLegCount');if(lc)lc.textContent=parlayLegs.length;
+  var po=document.getElementById('pOdds');if(po)po.textContent='+'+ao;
+  var pp=document.getElementById('pPayout');if(pp)pp.textContent='$'+py;
+  if(btn){
+    if(parlayLegs.length>=2){
+      btn.disabled=false;btn.style.background='var(--cyan)';btn.style.cursor='pointer';btn.textContent='ANALYZE PARLAY ('+parlayLegs.length+' LEGS)';
+    } else {
+      btn.disabled=true;btn.style.background='var(--muted2)';btn.style.cursor='default';btn.textContent='ADD 1 MORE LEG TO ANALYZE';
+    }
+  }
+}
+
+function removeLeg(i){parlayLegs.splice(i,1);renderParlaySignals();updateParlayUI();}
+function clearParlay(){parlayLegs=[];renderParlaySignals();updateParlayUI();var a=document.getElementById('pAnalysis');if(a){a.style.display='none';a.textContent='';}}
+
+async function analyzeParlay(){
+  if(parlayLegs.length<2){showToast('Add at least 2 legs to analyze');return;}
+  var btn=document.getElementById('pAnalyzeBtn'),analysis=document.getElementById('pAnalysis');
+  var legCount=parlayLegs.length;
+  if(btn){btn.textContent='ANALYZING...';btn.disabled=true;btn.style.cursor='default';}
+  if(analysis){analysis.style.display='block';analysis.textContent='S.I.D.E. AI is analyzing your parlay...';}
+  var legs=parlayLegs.map(function(s){return s.game+' - '+s.bet;}).join(', ');
+  try{
+    var r=await fetch('http://localhost:3001/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp betting analyst.',messages:[{role:'user',content:'Analyze this parlay: '+legs+'. Give each leg assessment, correlation risks, and an overall BET or FADE recommendation.'}]})});
+    var data=await r.json();
+    var reply=data.content?data.content.map(function(c){return c.text||'';}).join(''):'No response received.';
+    if(analysis){analysis.textContent=reply;}
+  }catch(e){if(analysis)analysis.textContent='Connection error: '+e.message+'. Make sure the server is running.';}
+  if(btn){btn.disabled=false;btn.style.cursor='pointer';btn.style.background='var(--cyan)';btn.textContent='ANALYZE PARLAY ('+legCount+' LEGS)';}
+}
+
+// ===== LIVE ODDS =====
+function filterOdds(btn, sport){
+  document.querySelectorAll('.of-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  loadOdds(sport);
+}
+
+async function loadOdds(sport){
+  currentOddsFilter = sport;
+  var list = document.getElementById('oddsList');
+  if(!list) return;
+  list.innerHTML = '<div class="empty-signals"><div class="es-icon">📊</div><div class="es-title">LOADING LIVE ODDS...</div></div>';
+  try{
+    var r = await fetch('http://localhost:3001/api/odds?sport=' + sport);
+    var games = await r.json();
+    var oddsCount = document.getElementById('oddsCount');
+    if(oddsCount) oddsCount.textContent = games.length + ' GAMES';
+    if(!games || games.length === 0){
+      list.innerHTML = '<div class="empty-signals"><div class="es-icon">📊</div><div class="es-title">NO ' + sport + ' GAMES</div><div class="es-sub">Check back when games are scheduled</div></div>';
+      return;
+    }
+    function cell(val, isBest){
+      if(!val) return '<div class="oc-odd" style="color:var(--muted2)">-</div>';
+      return '<div class="oc-odd' + (isBest?' best':'') + '">' + val + '</div>';
+    }
+    list.innerHTML = games.map(function(g){
+      var books = g.books || [];
+      var b0 = books[0] || {};
+      var b1 = books[1] || {};
+      var b2 = books[2] || {};
+      var b3 = books[3] || {};
+      // Find best spread for away (lowest number)
+      var spreads = [b0.awaySpread, b1.awaySpread, b2.awaySpread, b3.awaySpread].filter(Boolean);
+      var bestAwaySpread = spreads.length ? spreads.reduce(function(a,b){return parseFloat(a)<parseFloat(b)?a:b;}) : null;
+      // Find best ML for away (highest positive or least negative)
+      var mls = [b0.awayML, b1.awayML, b2.awayML, b3.awayML].filter(Boolean);
+      var bestAwayML = mls.length ? mls.reduce(function(a,b){return parseFloat(a)>parseFloat(b)?a:b;}) : null;
+
+      return '<div class="odds-card">' +
+        '<div class="oc-header"><div style="display:flex;align-items:center;justify-content:space-between"><div><div class="oc-sport">'+g.sport+'</div><div class="oc-game">'+g.away+' vs '+g.home+'</div></div><div class="oc-time">'+g.time+'</div></div></div>' +
+        '<div class="oc-lines">' +
+          '<div class="oc-books-row"><div style="font-family:Share Tech Mono,monospace;font-size:8px;color:var(--muted2)">SPREAD (-110)</div>' +
+            '<div class="oc-book-hdr">'+(b0.book||'-')+'</div>' +
+            '<div class="oc-book-hdr">'+(b1.book||'-')+'</div>' +
+            '<div class="oc-book-hdr">'+(b2.book||'-')+'</div>' +
+            '<div class="oc-book-hdr">'+(b3.book||'-')+'</div>' +
+          '</div>' +
+          '<div class="oc-team-row"><div class="oc-team" title="'+g.away+'">'+g.away.slice(0,9)+'</div>' +
+            cell(b0.awaySpread, b0.awaySpread===bestAwaySpread) +
+            cell(b1.awaySpread, b1.awaySpread===bestAwaySpread) +
+            cell(b2.awaySpread, b2.awaySpread===bestAwaySpread) +
+            cell(b3.awaySpread, b3.awaySpread===bestAwaySpread) +
+          '</div>' +
+          '<div class="oc-team-row"><div class="oc-team" title="'+g.home+'">'+g.home.slice(0,9)+'</div>' +
+            cell(b0.homeSpread, false) +
+            cell(b1.homeSpread, false) +
+            cell(b2.homeSpread, false) +
+            cell(b3.homeSpread, false) +
+          '</div>' +
+          '<div style="font-family:Share Tech Mono,monospace;font-size:8px;color:var(--muted2);padding:4px 0 2px;letter-spacing:.5px">AMERICAN ODDS (MONEYLINE)</div>' +
+          '<div class="oc-team-row"><div class="oc-team" title="'+g.away+'">'+g.away.slice(0,9)+'</div>' +
+            cell(b0.awayML, b0.awayML===bestAwayML) +
+            cell(b1.awayML, b1.awayML===bestAwayML) +
+            cell(b2.awayML, b2.awayML===bestAwayML) +
+            cell(b3.awayML, b3.awayML===bestAwayML) +
+          '</div>' +
+          '<div class="oc-team-row"><div class="oc-team" title="'+g.home+'">'+g.home.slice(0,9)+'</div>' +
+            cell(b0.homeML, false) +
+            cell(b1.homeML, false) +
+            cell(b2.homeML, false) +
+            cell(b3.homeML, false) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }catch(e){
+    list.innerHTML = '<div class="empty-signals"><div class="es-icon">⚠️</div><div class="es-title">SERVER OFFLINE</div><div class="es-sub">Run: node server.js</div></div>';
+  }
+}
+
+// Animate landing stats on load
+window.addEventListener('load', function(){
+  setTimeout(function(){animCount('hs1',34,'',1200);},500);
+});
+</script>
+</body>
+</html>
