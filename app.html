@@ -307,8 +307,26 @@ body{overflow-y:auto}
       </svg>
       <div class="land-brand">SHARP SHADOW <span>AI</span></div>
     </div>
-    <button class="land-nav-btn" onclick="openModal()">GET STARTED</button>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button onclick="openLoginModal()" style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;background:none;border:1px solid var(--b2);color:var(--muted);padding:9px 18px;cursor:pointer">LOG IN</button>
+      <button class="land-nav-btn" onclick="openModal()">GET STARTED</button>
+    </div>
   </nav>
+
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;align-items:center;justify-content:center;padding:20px">
+    <div class="modal-box" style="max-width:380px">
+      <button class="modal-close" onclick="closeLoginModal()">✕</button>
+      <div class="modal-eyebrow">// MEMBER ACCESS //</div>
+      <div class="modal-title">SIGN <span>IN</span></div>
+      <div class="modal-sub" style="margin-bottom:20px">Enter the access code from your welcome email to get back into your account.</div>
+      <input id="loginCodeInput" type="text" placeholder="Enter access code..." onkeydown="if(event.key==='Enter')submitLoginCode()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
+      <button class="modal-btn" onclick="submitLoginCode()" style="width:100%">ACCESS MY ACCOUNT</button>
+      <div id="loginError" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);text-align:center;margin-top:10px;display:none">Invalid code. Check your welcome email or contact support.</div>
+      <div class="modal-note" style="margin-top:16px">// NO ACCOUNT YET? START YOUR TRIAL BELOW //</div>
+      <button onclick="closeLoginModal();openModal()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--b2);color:var(--cyan);font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer">START 2-DAY TRIAL — $4</button>
+    </div>
+  </div>
 
   <div class="hero">
     <div class="hero-tag">// PROFESSIONAL SHARP MONEY INTELLIGENCE //</div>
@@ -766,6 +784,33 @@ function signOut(){
   showToast('Signed out successfully.');
 }
 
+function openLoginModal(){
+  document.getElementById('loginModal').style.display = 'flex';
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('loginCodeInput').value = '';
+  setTimeout(function(){ document.getElementById('loginCodeInput').focus(); }, 100);
+}
+
+function closeLoginModal(){
+  document.getElementById('loginModal').style.display = 'none';
+}
+
+function submitLoginCode(){
+  var code = document.getElementById('loginCodeInput').value.trim().toUpperCase();
+  // Valid access codes - you can add more or change these anytime
+  var validCodes = ['SHARP2025','SHADOW2025','SSAI2025','ELITE2025'];
+  if(validCodes.indexOf(code) !== -1){
+    localStorage.setItem('ss_access', 'true');
+    localStorage.setItem('ss_plan', 'member');
+    localStorage.setItem('ss_since', Date.now());
+    closeLoginModal();
+    openApp();
+    showToast('Welcome back! Access granted.');
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
 function openModal(){
   document.getElementById('modalOverlay').style.display = 'flex';
 }
@@ -810,7 +855,7 @@ async function subscribe(){
   btn.disabled = true;
   try{
     var endpoint = currentPlan === 'annual' ? '/api/checkout/annual' : '/api/checkout/trial';
-    var r = await fetch('http://localhost:3001' + endpoint, {
+    var r = await fetch(endpoint, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -867,7 +912,7 @@ function animCount(id, target, suffix, duration){
 // ===== SIGNALS =====
 async function fetchSignals(){
   try{
-    var r = await fetch('http://localhost:3001/api/signals');
+    var r = await fetch('/api/signals');
     var d = await r.json();
     allGames = d.games || 0;
     // Update status
@@ -989,7 +1034,7 @@ function sendEdge(){
   edgeHistory.push({role:'user',content:msg});
   var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.type+', moved '+s.mov+')';}).join(', ');
   var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the most powerful sports betting analyst. Today is June 12 2026. You have live web search. Search for current games and injuries. Give sharp confident predictions with real stats. Current signals: ' + sigCtx;
-  fetch('http://localhost:3001/api/edge', {
+  fetch('/api/edge', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:edgeHistory})
@@ -1046,7 +1091,7 @@ async function loadPicks(){
   container.appendChild(loading);
   try{
     var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-    var r = await fetch('http://localhost:3001/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst with live web search. Search for todays games (' + today + '). Give TOP 3 best bets. For each: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [stats] | SHARP ANGLE: [money] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Top 3 best bets today, ' + today + '. Search current games and give real predictions with stats.'}]})});
+    var r = await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst with live web search. Search for todays games (' + today + '). Give TOP 3 best bets. For each: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [stats] | SHARP ANGLE: [money] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Top 3 best bets today, ' + today + '. Search current games and give real predictions with stats.'}]})});
     var data = await r.json();
     var text = data.content ? data.content.map(function(c){return c.text||'';}).join('') : '';
     var loading2 = document.getElementById('picksLoading');
@@ -1124,7 +1169,7 @@ async function analyzeParlay(){
   if(analysis){analysis.style.display='block';analysis.textContent='S.I.D.E. AI is analyzing your parlay...';}
   var legs=parlayLegs.map(function(s){return s.game+' - '+s.bet;}).join(', ');
   try{
-    var r=await fetch('http://localhost:3001/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp betting analyst.',messages:[{role:'user',content:'Analyze this parlay: '+legs+'. Give each leg assessment, correlation risks, and an overall BET or FADE recommendation.'}]})});
+    var r=await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp betting analyst.',messages:[{role:'user',content:'Analyze this parlay: '+legs+'. Give each leg assessment, correlation risks, and an overall BET or FADE recommendation.'}]})});
     var data=await r.json();
     var reply=data.content?data.content.map(function(c){return c.text||'';}).join(''):'No response received.';
     if(analysis){analysis.textContent=reply;}
@@ -1145,7 +1190,7 @@ async function loadOdds(sport){
   if(!list) return;
   list.innerHTML = '<div class="empty-signals"><div class="es-icon">📊</div><div class="es-title">LOADING LIVE ODDS...</div></div>';
   try{
-    var r = await fetch('http://localhost:3001/api/odds?sport=' + sport);
+    var r = await fetch('/api/odds?sport=' + sport);
     var games = await r.json();
     var oddsCount = document.getElementById('oddsCount');
     if(oddsCount) oddsCount.textContent = games.length + ' GAMES';
