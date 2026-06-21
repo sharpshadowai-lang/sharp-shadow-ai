@@ -342,6 +342,9 @@ app.post('/api/edge', async function(req, res) {
     res.json(response.data);
   } catch (err) {
     console.log('EDGE AI ERROR: ' + (err.response ? err.response.status : err.message));
+    if (err.response && err.response.data) {
+      console.log('EDGE AI ERROR DETAIL: ' + JSON.stringify(err.response.data));
+    }
     res.status(500).json({ error: err.message, content: [{type:'text', text:'Sorry, I had trouble connecting. Please try again.'}] });
   }
 });
@@ -355,6 +358,7 @@ app.post('/api/checkout/trial', async function(req, res) {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [{ price: process.env.STRIPE_PRICE_TRIAL_FEE, quantity: 1 }],
+      allow_promotion_codes: true,
       payment_intent_data: {
         setup_future_usage: 'off_session',
         metadata: { plan: 'trial', next_price: process.env.STRIPE_PRICE_MONTHLY }
@@ -377,6 +381,7 @@ app.post('/api/checkout/annual', async function(req, res) {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: process.env.STRIPE_PRICE_ANNUAL, quantity: 1 }],
+      allow_promotion_codes: true,
       success_url: (req.body.success_url || 'http://localhost:3001') + '?checkout=success&plan=annual',
       cancel_url: (req.body.cancel_url || 'http://localhost:3001') + '?checkout=cancel',
       metadata: { plan: 'annual' }
