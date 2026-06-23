@@ -6,6 +6,12 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const JWT_SECRET = process.env.JWT_SECRET || 'sharpshadow_jwt_secret_2025';
 
 const app = express();
 app.use(cors());
@@ -390,6 +396,95 @@ app.post('/api/checkout/annual', async function(req, res) {
   } catch (err) {
     console.log('STRIPE ANNUAL ERROR: ' + err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== AUTH ENDPOINTS =====
+
+// Sign up — called after successful Stripe payment
+app.post('/api/auth/signup', async function(req, res) {
+  try {
+    var email = (req.body.email || '').toLowerCase().trim();
+    var password = req.body.password || '';
+    var plan = req.body.plan || 'trial';
+
+    if(!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    // Check if email already exists
+    var existing = await supabase.from('users').select('id').eq('email', email).single();
+    if(existing.data) return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+
+    // Hash password
+    var hash = await bcrypt.hash(password, 10);
+
+    // Create user in database
+    var result = await supabase.from('users').insert([{
+      email: email,
+      password_hash: hash,
+      plan: plan,
+      subscription_status: 'active'
+    }]).select().single();
+
+    if(result.error) throw result.error;
+
+    // Generate JWT token
+    var token = jwt.sign({ id: result.data.id, email: email, plan: plan }, JWT_SECRET, { expiresIn: '30d' });
+
+    console.log('NEW USER SIGNUP: ' + email + ' plan: ' + plan);
+    res.json({ success: true, token: token, email: email, plan: plan });
+  } catch(err) {
+    console.log('SIGNUP ERROR: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Log in
+app.post('/api/auth/login', async function(req, res) {
+  try {
+    var email = (req.body.email || '').toLowerCase().trim();
+    var password = req.body.password || '';
+
+    if(!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    // Find user
+    var result = await supabase.from('users').select('*').eq('email', email).single();
+    if(!result.data) return res.status(401).json({ error: 'No account found with this email. Please sign up first.' });
+
+    var user = result.data;
+
+    // Check subscription status
+    if(user.subscription_status === 'cancelled') return res.status(401).json({ error: 'Your subscription has been cancelled. Please resubscribe to continue.' });
+
+    // Verify password
+    var valid = await bcrypt.compare(password, user.password_hash);
+    if(!valid) return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+
+    // Generate JWT token
+    var token = jwt.sign({ id: user.id, email: email, plan: user.plan }, JWT_SECRET, { expiresIn: '30d' });
+
+    console.log('USER LOGIN: ' + email);
+    res.json({ success: true, token: token, email: email, plan: user.plan });
+  } catch(err) {
+    console.log('LOGIN ERROR: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Verify token (check if still logged in)
+app.post('/api/auth/verify', async function(req, res) {
+  try {
+    var token = req.body.token || '';
+    if(!token) return res.status(401).json({ valid: false });
+    var decoded = jwt.verify(token, JWT_SECRET);
+    // Check subscription still active
+    var result = await supabase.from('users').select('subscription_status, plan').eq('id', decoded.id).single();
+    if(!result.data || result.data.subscription_status === 'cancelled') {
+      return res.json({ valid: false });
+    }
+    res.json({ valid: true, email: decoded.email, plan: result.data.plan });
+  } catch(err) {
+    res.json({ valid: false });
   }
 });
 
