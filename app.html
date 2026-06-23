@@ -313,18 +313,36 @@ body{overflow-y:auto}
     </div>
   </nav>
 
-  <!-- LOGIN MODAL -->
+  <!-- AUTH MODAL — LOGIN + SIGNUP -->
   <div id="loginModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;align-items:center;justify-content:center;padding:20px">
-    <div class="modal-box" style="max-width:380px">
+    <div class="modal-box" style="max-width:400px">
       <button class="modal-close" onclick="closeLoginModal()">✕</button>
-      <div class="modal-eyebrow">// MEMBER ACCESS //</div>
-      <div class="modal-title">SIGN <span>IN</span></div>
-      <div class="modal-sub" style="margin-bottom:20px">Enter the access code from your welcome email to get back into your account.</div>
-      <input id="loginCodeInput" type="text" placeholder="Enter access code..." onkeydown="if(event.key==='Enter')submitLoginCode()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
-      <button class="modal-btn" onclick="submitLoginCode()" style="width:100%">ACCESS MY ACCOUNT</button>
-      <div id="loginError" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);text-align:center;margin-top:10px;display:none">Invalid code. Check your welcome email or contact support.</div>
-      <div class="modal-note" style="margin-top:16px">// NO ACCOUNT YET? START YOUR TRIAL BELOW //</div>
-      <button onclick="closeLoginModal();openModal()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--b2);color:var(--cyan);font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer">START 2-DAY TRIAL — $4</button>
+
+      <!-- Login View -->
+      <div id="authLoginView">
+        <div class="modal-eyebrow">// MEMBER ACCESS //</div>
+        <div class="modal-title">SIGN <span>IN</span></div>
+        <div class="modal-sub" style="margin-bottom:20px">Welcome back. Enter your email and password to access your account.</div>
+        <input id="loginEmail" type="email" placeholder="Email address" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
+        <input id="loginPassword" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
+        <button class="modal-btn" onclick="submitLogin()" style="width:100%">LOG IN</button>
+        <div id="loginError" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);text-align:center;margin-top:10px;display:none"></div>
+        <div class="modal-note" style="margin-top:16px">// NO ACCOUNT YET? //</div>
+        <button onclick="closeLoginModal();openModal()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--b2);color:var(--cyan);font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer">START 2-DAY TRIAL — $4</button>
+      </div>
+
+      <!-- Signup View (shown after payment) -->
+      <div id="authSignupView" style="display:none">
+        <div class="modal-eyebrow">// CREATE YOUR ACCOUNT //</div>
+        <div class="modal-title">ALMOST <span>DONE</span></div>
+        <div class="modal-sub" style="margin-bottom:20px">Payment successful! Create your account to access Sharp Shadow AI from any device.</div>
+        <input id="signupEmail" type="email" placeholder="Email address" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
+        <input id="signupPassword" type="password" placeholder="Create a password (min 6 characters)" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
+        <input id="signupPassword2" type="password" placeholder="Confirm password" onkeydown="if(event.key==='Enter')submitSignup()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
+        <button class="modal-btn" onclick="submitSignup()" style="width:100%">CREATE ACCOUNT & ENTER APP</button>
+        <div id="signupError" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);text-align:center;margin-top:10px;display:none"></div>
+        <div class="modal-note" style="margin-top:12px">// YOUR INFO IS SECURE AND NEVER SHARED //</div>
+      </div>
     </div>
   </div>
 
@@ -734,19 +752,13 @@ var parlayLegs = [];
   var checkout = params.get('checkout');
   var plan = params.get('plan');
   if(checkout === 'success'){
-    // Save session to localStorage so user stays logged in
-    localStorage.setItem('ss_access', 'true');
-    localStorage.setItem('ss_plan', plan || 'trial');
-    localStorage.setItem('ss_since', Date.now());
     // Clean up URL
     window.history.replaceState({}, '', '/');
     window.addEventListener('DOMContentLoaded', function(){
-      openApp();
-      if(plan === 'annual'){
-        showToast('Welcome to Elite! $349.99/year, locked in for 12 months.');
-      } else {
-        showToast('Trial started! $4 charged for 2 days, then $49.99/month. Cancel anytime after trial.');
-      }
+      // Show signup modal so customer creates their account
+      currentPlan = plan || 'trial';
+      openSignupModal(plan);
+      showToast('Payment successful! Create your account to get started.');
     });
   } else if(checkout === 'cancel'){
     window.history.replaceState({}, '', '/');
@@ -754,11 +766,24 @@ var parlayLegs = [];
       showToast('Checkout cancelled. No charge was made.');
     });
   } else {
-    // Check if user already has access saved in localStorage
-    var hasAccess = localStorage.getItem('ss_access');
-    if(hasAccess === 'true'){
-      window.addEventListener('DOMContentLoaded', function(){
-        openApp();
+    // Check if user already has a valid token
+    var token = localStorage.getItem('ss_token');
+    if(token){
+      window.addEventListener('DOMContentLoaded', async function(){
+        try {
+          var r = await fetch('/api/auth/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token})});
+          var data = await r.json();
+          if(data.valid){
+            openApp();
+          } else {
+            // Token expired or subscription cancelled
+            localStorage.removeItem('ss_token');
+            localStorage.removeItem('ss_access');
+          }
+        } catch(e) {
+          // If server unreachable, use localStorage as fallback
+          if(localStorage.getItem('ss_access') === 'true') openApp();
+        }
       });
     }
   }
@@ -786,29 +811,93 @@ function signOut(){
 
 function openLoginModal(){
   document.getElementById('loginModal').style.display = 'flex';
+  document.getElementById('authLoginView').style.display = 'block';
+  document.getElementById('authSignupView').style.display = 'none';
   document.getElementById('loginError').style.display = 'none';
-  document.getElementById('loginCodeInput').value = '';
-  setTimeout(function(){ document.getElementById('loginCodeInput').focus(); }, 100);
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  setTimeout(function(){ document.getElementById('loginEmail').focus(); }, 100);
+}
+
+function openSignupModal(plan){
+  document.getElementById('loginModal').style.display = 'flex';
+  document.getElementById('authLoginView').style.display = 'none';
+  document.getElementById('authSignupView').style.display = 'block';
+  document.getElementById('signupError').style.display = 'none';
+  // Pre-fill email if we know it from checkout
+  setTimeout(function(){ document.getElementById('signupEmail').focus(); }, 100);
 }
 
 function closeLoginModal(){
   document.getElementById('loginModal').style.display = 'none';
 }
 
-function submitLoginCode(){
-  var code = document.getElementById('loginCodeInput').value.trim().toUpperCase();
-  // Valid access codes - you can add more or change these anytime
-  var validCodes = ['SHARP2025','SHADOW2025','SSAI2025','ELITE2025'];
-  if(validCodes.indexOf(code) !== -1){
-    localStorage.setItem('ss_access', 'true');
-    localStorage.setItem('ss_plan', 'member');
-    localStorage.setItem('ss_since', Date.now());
-    closeLoginModal();
-    openApp();
-    showToast('Welcome back! Access granted.');
-  } else {
-    document.getElementById('loginError').style.display = 'block';
+async function submitLogin(){
+  var btn = document.querySelector('#authLoginView .modal-btn');
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  var errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  if(!email || !password){ errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
+
+  btn.textContent = 'LOGGING IN...'; btn.disabled = true;
+  try{
+    var r = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email, password:password})});
+    var data = await r.json();
+    if(data.success){
+      localStorage.setItem('ss_token', data.token);
+      localStorage.setItem('ss_email', data.email);
+      localStorage.setItem('ss_plan', data.plan);
+      localStorage.setItem('ss_access', 'true');
+      closeLoginModal();
+      openApp();
+      showToast('Welcome back, ' + data.email + '!');
+    } else {
+      errEl.textContent = data.error || 'Login failed. Please try again.';
+      errEl.style.display = 'block';
+    }
+  } catch(e){
+    errEl.textContent = 'Connection error. Please try again.';
+    errEl.style.display = 'block';
   }
+  btn.textContent = 'LOG IN'; btn.disabled = false;
+}
+
+async function submitSignup(){
+  var btn = document.querySelector('#authSignupView .modal-btn');
+  var email = document.getElementById('signupEmail').value.trim();
+  var password = document.getElementById('signupPassword').value;
+  var password2 = document.getElementById('signupPassword2').value;
+  var plan = currentPlan || 'trial';
+  var errEl = document.getElementById('signupError');
+  errEl.style.display = 'none';
+
+  if(!email){ errEl.textContent = 'Please enter your email address.'; errEl.style.display = 'block'; return; }
+  if(password.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+  if(password !== password2){ errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
+
+  btn.textContent = 'CREATING ACCOUNT...'; btn.disabled = true;
+  try{
+    var r = await fetch('/api/auth/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email, password:password, plan:plan})});
+    var data = await r.json();
+    if(data.success){
+      localStorage.setItem('ss_token', data.token);
+      localStorage.setItem('ss_email', data.email);
+      localStorage.setItem('ss_plan', data.plan);
+      localStorage.setItem('ss_access', 'true');
+      closeLoginModal();
+      openApp();
+      showToast('Account created! Welcome to Sharp Shadow AI.');
+    } else {
+      errEl.textContent = data.error || 'Signup failed. Please try again.';
+      errEl.style.display = 'block';
+    }
+  } catch(e){
+    errEl.textContent = 'Connection error. Please try again.';
+    errEl.style.display = 'block';
+  }
+  btn.textContent = 'CREATE ACCOUNT & ENTER APP'; btn.disabled = false;
 }
 
 function openModal(){
