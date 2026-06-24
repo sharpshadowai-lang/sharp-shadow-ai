@@ -359,16 +359,19 @@ app.post('/api/edge', async function(req, res) {
 // Trial: $4 charged immediately (one-time), then $49.99/month subscription starts after a 2-day trial
 app.post('/api/checkout/trial', async function(req, res) {
   try {
-    var baseUrl = req.body.success_url || 'http://localhost:3001';
+    var baseUrl = req.body.success_url || process.env.APP_URL || 'http://localhost:3001';
     var session = await stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: process.env.STRIPE_PRICE_TRIAL_FEE, quantity: 1 }],
+      line_items: [{ price: process.env.STRIPE_PRICE_MONTHLY, quantity: 1 }],
       allow_promotion_codes: true,
-      payment_intent_data: {
-        setup_future_usage: 'off_session',
-        metadata: { plan: 'trial', next_price: process.env.STRIPE_PRICE_MONTHLY }
+      subscription_data: {
+        trial_period_days: 2,
+        trial_settings: {
+          end_behavior: { missing_payment_method: 'cancel' }
+        }
       },
+      payment_method_collection: 'always',
       success_url: baseUrl + '?checkout=success&plan=trial',
       cancel_url: (req.body.cancel_url || baseUrl) + '?checkout=cancel',
       metadata: { plan: 'trial' }
@@ -383,13 +386,14 @@ app.post('/api/checkout/trial', async function(req, res) {
 // Annual: $349.99/year, no trial, non-refundable
 app.post('/api/checkout/annual', async function(req, res) {
   try {
+    var baseUrl = req.body.success_url || process.env.APP_URL || 'http://localhost:3001';
     var session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: process.env.STRIPE_PRICE_ANNUAL, quantity: 1 }],
       allow_promotion_codes: true,
-      success_url: (req.body.success_url || 'http://localhost:3001') + '?checkout=success&plan=annual',
-      cancel_url: (req.body.cancel_url || 'http://localhost:3001') + '?checkout=cancel',
+      success_url: baseUrl + '?checkout=success&plan=annual',
+      cancel_url: (req.body.cancel_url || baseUrl) + '?checkout=cancel',
       metadata: { plan: 'annual' }
     });
     res.json({ url: session.url });
