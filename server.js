@@ -481,15 +481,108 @@ app.post('/api/auth/verify', async function(req, res) {
     var token = req.body.token || '';
     if(!token) return res.status(401).json({ valid: false });
     var decoded = jwt.verify(token, JWT_SECRET);
-    // Check subscription still active
-    var result = await supabase.from('users').select('subscription_status, plan').eq('id', decoded.id).single();
-    if(!result.data || result.data.subscription_status === 'cancelled') {
-      return res.json({ valid: false });
+    // Check subscription status
+    var result = await supabase.from('users').select('subscription_status, plan, subscription_end').eq('id', decoded.id).single();
+    if(!result.data) return res.json({ valid: false });
+
+    var status = result.data.subscription_status;
+    var subEnd = result.data.subscription_end;
+
+    // Allow access if:
+    // 1. Status is active or trialing
+    // 2. Status is cancelling (cancelled but still within paid period)
+    // 3. Status is cancelled BUT subscription_end is in the future (still has paid time left)
+    var hasAccess = false;
+    if(status === 'active' || status === 'trialing' || status === 'cancelling') {
+      hasAccess = true;
+    } else if(status === 'cancelled' && subEnd) {
+      hasAccess = new Date(subEnd) > new Date();
     }
-    res.json({ valid: true, email: decoded.email, plan: result.data.plan });
+
+    if(!hasAccess) return res.json({ valid: false });
+    res.json({ valid: true, email: decoded.email, plan: result.data.plan, status: status });
   } catch(err) {
     res.json({ valid: false });
   }
+});
+
+// ===== STRIPE WEBHOOK =====
+// Must use raw body for Stripe signature verification
+app.post('/webhook/stripe', express.raw({type: 'application/json'}), async function(req, res) {
+  var sig = req.headers['stripe-signature'];
+  var webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  var event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch(err) {
+    console.log('WEBHOOK ERROR: ' + err.message);
+    return res.status(400).send('Webhook Error: ' + err.message);
+  }
+
+  console.log('WEBHOOK EVENT: ' + event.type);
+
+  try {
+    // New subscription started (free trial begins)
+    if(event.type === 'checkout.session.completed') {
+      var session = event.data.object;
+      var email = session.customer_details ? session.customer_details.email : null;
+      var customerId = session.customer;
+      if(email) {
+        await supabase.from('users')
+          .update({ stripe_customer_id: customerId, subscription_status: 'active' })
+          .eq('email', email.toLowerCase());
+        console.log('WEBHOOK: New customer linked - ' + email);
+      }
+    }
+
+    // Subscription cancelled — keep access until period end
+    if(event.type === 'customer.subscription.deleted') {
+      var sub = event.data.object;
+      var customerId = sub.customer;
+      var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+      await supabase.from('users')
+        .update({ 
+          subscription_status: 'cancelled',
+          subscription_end: periodEnd
+        })
+        .eq('stripe_customer_id', customerId);
+      console.log('WEBHOOK: Subscription cancelled - access until ' + periodEnd + ' - customer ' + customerId);
+    }
+
+    // Subscription updated (plan change, trial ended, etc)
+    if(event.type === 'customer.subscription.updated') {
+      var sub = event.data.object;
+      var customerId = sub.customer;
+      var status = sub.status;
+      var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+      // If cancelling at period end (cancel_at_period_end = true), keep active until then
+      var dbStatus = 'active';
+      if(status === 'trialing') dbStatus = 'active';
+      else if(status === 'active') dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
+      else if(status === 'past_due') dbStatus = 'past_due';
+      else if(status === 'canceled' || status === 'cancelled') dbStatus = 'cancelled';
+      await supabase.from('users')
+        .update({ subscription_status: dbStatus, subscription_end: periodEnd })
+        .eq('stripe_customer_id', customerId);
+      console.log('WEBHOOK: Subscription updated - ' + customerId + ' status: ' + dbStatus);
+    }
+
+    // Payment failed
+    if(event.type === 'invoice.payment_failed') {
+      var invoice = event.data.object;
+      var customerId = invoice.customer;
+      await supabase.from('users')
+        .update({ subscription_status: 'past_due' })
+        .eq('stripe_customer_id', customerId);
+      console.log('WEBHOOK: Payment failed - customer ' + customerId);
+    }
+
+  } catch(err) {
+    console.log('WEBHOOK PROCESSING ERROR: ' + err.message);
+  }
+
+  res.json({ received: true });
 });
 
 var PORT = process.env.PORT || 3001;
