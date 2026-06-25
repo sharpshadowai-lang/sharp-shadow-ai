@@ -328,7 +328,36 @@ app.get('/api/odds', function(req, res) {
 });
 
 
+// Rate limiter for S.I.D.E. AI — 30 calls per IP per day
+var aiCallTracker = {};
+function checkRateLimit(ip) {
+  var now = Date.now();
+  var dayMs = 24 * 60 * 60 * 1000;
+  if(!aiCallTracker[ip]) aiCallTracker[ip] = { count: 0, resetAt: now + dayMs };
+  if(now > aiCallTracker[ip].resetAt) {
+    aiCallTracker[ip] = { count: 0, resetAt: now + dayMs };
+  }
+  aiCallTracker[ip].count++;
+  return aiCallTracker[ip].count <= 30;
+}
+
+// Clean up old entries every hour
+setInterval(function() {
+  var now = Date.now();
+  Object.keys(aiCallTracker).forEach(function(ip) {
+    if(now > aiCallTracker[ip].resetAt) delete aiCallTracker[ip];
+  });
+}, 60 * 60 * 1000);
+
 app.post('/api/edge', async function(req, res) {
+  var ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  if(!checkRateLimit(ip)) {
+    console.log('EDGE AI RATE LIMITED: ' + ip);
+    return res.status(429).json({ 
+      error: 'Daily limit reached',
+      content: [{type:'text', text:'You have reached your daily limit of 30 S.I.D.E. AI calls. Your limit resets at midnight. Upgrade to annual plan for higher limits.'}]
+    });
+  }
   console.log('EDGE AI CALLED');
   try {
     var response = await axios.post('https://api.anthropic.com/v1/messages', {
@@ -583,6 +612,26 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
   }
 
   res.json({ received: true });
+});
+
+// ===== MANAGE SUBSCRIPTION (Stripe Customer Portal) =====
+app.post('/api/customer-portal', async function(req, res) {
+  try {
+    var token = req.body.token || '';
+    var decoded = require('jsonwebtoken').verify(token, JWT_SECRET);
+    var result = await supabase.from('users').select('stripe_customer_id').eq('id', decoded.id).single();
+    if(!result.data || !result.data.stripe_customer_id) {
+      return res.status(400).json({ error: 'No subscription found. Please contact support@sharpshadowai.com' });
+    }
+    var session = await stripe.billingPortal.sessions.create({
+      customer: result.data.stripe_customer_id,
+      return_url: process.env.APP_URL || 'https://sharp-shadow-ai-production.up.railway.app'
+    });
+    res.json({ url: session.url });
+  } catch(err) {
+    console.log('PORTAL ERROR: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 var PORT = process.env.PORT || 3001;
