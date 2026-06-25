@@ -537,7 +537,7 @@ body{overflow-y:auto}
 
   <div class="land-footer">
     Sharp Shadow AI is for entertainment and informational purposes only. Not financial advice. Must be 21+ and in a jurisdiction where sports betting is legal.<br>
-    Gambling Problem? Call 1-800-522-4700 · <a href="#" style="color:var(--muted)">Terms</a> · <a href="#" style="color:var(--muted)">Privacy</a><br>
+    Gambling Problem? Call 1-800-522-4700 · <a href="#" onclick="document.getElementById('termsModal').style.display='block';return false;" style="color:var(--muted)">Terms</a> · <a href="#" onclick="document.getElementById('privacyModal').style.display='block';return false;" style="color:var(--muted)">Privacy</a><br>
     Questions or support? Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a>
   </div>
 </div>
@@ -558,6 +558,7 @@ body{overflow-y:auto}
     </div>
     <button class="app-upgrade" onclick="openModal()">UPGRADE</button>
     <a href="mailto:support@sharpshadowai.com" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">SUPPORT</a>
+    <button onclick="manageSubscription()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">MANAGE SUB</button>
     <button onclick="signOut()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">SIGN OUT</button>
   </nav>
 
@@ -736,6 +737,43 @@ body{overflow-y:auto}
   </div>
 </div>
 
+<!-- TERMS OF SERVICE MODAL -->
+<div id="termsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;overflow-y:auto;padding:40px 20px">
+  <div style="max-width:700px;margin:0 auto;background:var(--s1);border:1px solid var(--b2);padding:40px;position:relative">
+    <button onclick="document.getElementById('termsModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    <div style="font-family:Orbitron,sans-serif;font-size:18px;font-weight:900;color:var(--cyan);margin-bottom:24px">TERMS OF SERVICE</div>
+    <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.9">
+      <p><strong style="color:var(--text)">Last updated: June 2026</strong></p>
+      <p><strong style="color:var(--text)">1. ACCEPTANCE OF TERMS</strong><br>By accessing or using Sharp Shadow AI, you agree to be bound by these Terms of Service. If you do not agree, do not use the service.</p>
+      <p><strong style="color:var(--text)">2. ENTERTAINMENT PURPOSES ONLY</strong><br>Sharp Shadow AI is provided for entertainment and informational purposes only. Nothing on this platform constitutes financial advice, gambling advice, or a guarantee of any outcome. All signals, picks, and AI-generated content are opinions only.</p>
+      <p><strong style="color:var(--text)">3. ELIGIBILITY</strong><br>You must be at least 21 years of age (or the legal age in your jurisdiction) and located in a jurisdiction where sports betting is legal to use this service.</p>
+      <p><strong style="color:var(--text)">4. SUBSCRIPTION AND BILLING</strong><br>Sharp Shadow AI offers a free 2-day trial followed by a $39.99/month or $349.99/year subscription. Your card will be charged automatically after the trial period. You may cancel at any time and will retain access until the end of your current billing period. The $349.99 annual plan is non-refundable.</p>
+      <p><strong style="color:var(--text)">5. REFUND POLICY</strong><br>Monthly subscribers may request a refund within 24 hours of their first $39.99 charge by emailing support@sharpshadowai.com. No refunds are available for the annual plan or after the 24-hour window.</p>
+      <p><strong style="color:var(--text)">6. CANCELLATION</strong><br>You may cancel your subscription at any time. Access continues until the end of your current billing period. To cancel, use the Manage Subscription option in the app or contact support@sharpshadowai.com.</p>
+      <p><strong style="color:var(--text)">7. LIMITATION OF LIABILITY</strong><br>Sharp Shadow AI is not responsible for any financial losses incurred through sports betting. Use of this platform is at your own risk. We make no guarantees about the accuracy, completeness, or profitability of any information provided.</p>
+      <p><strong style="color:var(--text)">8. CONTACT</strong><br>For questions, contact support@sharpshadowai.com</p>
+    </div>
+  </div>
+</div>
+
+<!-- PRIVACY POLICY MODAL -->
+<div id="privacyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;overflow-y:auto;padding:40px 20px">
+  <div style="max-width:700px;margin:0 auto;background:var(--s1);border:1px solid var(--b2);padding:40px;position:relative">
+    <button onclick="document.getElementById('privacyModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    <div style="font-family:Orbitron,sans-serif;font-size:18px;font-weight:900;color:var(--cyan);margin-bottom:24px">PRIVACY POLICY</div>
+    <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.9">
+      <p><strong style="color:var(--text)">Last updated: June 2026</strong></p>
+      <p><strong style="color:var(--text)">1. INFORMATION WE COLLECT</strong><br>We collect your email address and password (encrypted) when you create an account. We collect payment information through Stripe (we never store your card details directly). We collect usage data to improve the service.</p>
+      <p><strong style="color:var(--text)">2. HOW WE USE YOUR INFORMATION</strong><br>Your email is used to manage your account and send important service updates. We do not sell your personal information to third parties. We do not send marketing emails without your consent.</p>
+      <p><strong style="color:var(--text)">3. DATA SECURITY</strong><br>Your password is encrypted using industry-standard bcrypt hashing. Your payment information is handled securely by Stripe and is never stored on our servers. Your data is stored securely in Supabase with encrypted connections.</p>
+      <p><strong style="color:var(--text)">4. THIRD PARTY SERVICES</strong><br>We use Stripe for payment processing, Supabase for database storage, Anthropic for AI services, and Railway for hosting. Each of these services has their own privacy policy.</p>
+      <p><strong style="color:var(--text)">5. YOUR RIGHTS</strong><br>You may request deletion of your account and data at any time by emailing support@sharpshadowai.com. We will process deletion requests within 30 days.</p>
+      <p><strong style="color:var(--text)">6. COOKIES</strong><br>We use minimal browser storage (localStorage) to keep you logged in. We do not use tracking cookies or advertising cookies.</p>
+      <p><strong style="color:var(--text)">7. CONTACT</strong><br>For privacy questions, contact support@sharpshadowai.com</p>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -801,6 +839,19 @@ function openApp(){
 function goHome(){
   document.getElementById('app').style.display = 'none';
   document.getElementById('landing').style.display = 'flex';
+}
+
+async function manageSubscription(){
+  var token = localStorage.getItem('ss_token');
+  if(!token){ showToast('Please log in first.'); return; }
+  try{
+    var r = await fetch('/api/customer-portal', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token})});
+    var data = await r.json();
+    if(data.url){ window.open(data.url, '_blank'); }
+    else{ showToast(data.error || 'Error opening portal. Contact support@sharpshadowai.com'); }
+  } catch(e){
+    showToast('Connection error. Try again or email support@sharpshadowai.com');
+  }
 }
 
 function signOut(){
