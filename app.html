@@ -1232,7 +1232,11 @@ async function loadPicks(){
   container.appendChild(loading);
   try{
     var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-    var r = await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst with live web search. Search for todays games (' + today + '). Give TOP 3 best bets. For each: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [stats] | SHARP ANGLE: [money] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Top 3 best bets today, ' + today + '. Search current games and give real predictions with stats.'}]})});
+    // Each customer gets a unique starting point on the slate
+    var userSeed = Math.floor(Math.random() * 9999);
+    var sports = ['NFL','NBA','MLB','NHL','EPL','World Cup','MLS','Tennis'];
+    var startSport = sports[userSeed % sports.length];
+    var r = await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), the sharpest sports betting analyst in the world. You have access to live web search. Your ONLY goal is to find the 3 highest probability winning bets available today ' + today + '. Search across all sports — NFL, NBA, MLB, NHL, soccer, and more. Start by looking at ' + startSport + ' first, then expand to other sports. Analyze: sharp money movement, line value vs opening, injuries, matchups, weather, public vs sharp splits. Only recommend bets with genuine edge. If a game has no edge, skip it. Be brutally honest — PASS on bad spots. For each pick format exactly: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [2-3 key facts] | SHARP ANGLE: [why sharp money likes this] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Find the 3 best bets available today ' + today + '. Search current games across all sports. I want your highest confidence plays with real data behind them. Start with ' + startSport + ' but go wherever the value is.'}]})});
     var data = await r.json();
     var text = data.content ? data.content.map(function(c){return c.text||'';}).join('') : '';
     var loading2 = document.getElementById('picksLoading');
