@@ -74,6 +74,11 @@ function formatPt(pt) {
   return pt > 0 ? '+' + pt : '' + pt;
 }
 
+function formatTotal(pt) {
+  if (pt === undefined || pt === null) return 'N/A';
+  return '' + pt;
+}
+
 function formatMov(diff) {
   var r = Math.round(diff * 2) / 2;
   return r > 0 ? '+' + r : '' + r;
@@ -163,7 +168,7 @@ function detectMoves(games) {
             } else {
               // Totals
               sharpTeam = diff > 0 ? 'OVER' : 'UNDER';
-              sharpPt = formatPt(curPt);
+              sharpPt = formatTotal(curPt);
             }
 
             bestMove = {
@@ -218,8 +223,8 @@ function detectMoves(games) {
         bet: m.sharpTeam + ' ' + m.sharpPt,
         btype: m.market.key === 'spreads' ? 'Spread' : 'Total',
         gtime: formatTime(game.commence_time),
-        open: formatPt(m.prevPt),
-        cur: formatPt(m.curPt),
+        open: m.market.key === 'totals' ? formatTotal(m.prevPt) : formatPt(m.prevPt),
+        cur: m.market.key === 'totals' ? formatTotal(m.curPt) : formatPt(m.curPt),
         mov: formatMov(m.diff),
         pct: pct,
         bfor: bfor,
