@@ -538,7 +538,7 @@ body{overflow-y:auto}
   <div class="land-footer">
     Sharp Shadow AI is for entertainment and informational purposes only. Not financial advice. Must be 21+ and in a jurisdiction where sports betting is legal.<br>
     Gambling Problem? Call 1-800-522-4700 · <a href="#" onclick="document.getElementById('termsModal').style.display='block';return false;" style="color:var(--muted)">Terms</a> · <a href="#" onclick="document.getElementById('privacyModal').style.display='block';return false;" style="color:var(--muted)">Privacy</a><br>
-    Questions or support? Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a>
+    Questions? <a href="#" onclick="document.getElementById('faqModal').style.display='block';return false;" style="color:var(--cyan)">View FAQ</a> · Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a>
   </div>
 </div>
 
@@ -556,7 +556,7 @@ body{overflow-y:auto}
       <div class="app-dot"></div>
       <span id="appStatusText">CONNECTING...</span>
     </div>
-    <a href="mailto:support@sharpshadowai.com" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">SUPPORT</a>
+    <a href="#" onclick="document.getElementById('faqModal').style.display='block';return false;" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">FAQ</a><a href="mailto:support@sharpshadowai.com" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">SUPPORT</a>
     <button onclick="manageSubscription()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">MANAGE SUB</button>
     <button onclick="signOut()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">SIGN OUT</button>
   </nav>
@@ -614,6 +614,7 @@ body{overflow-y:auto}
     <div class="edge-panel">
       <div class="panel-header">
         <div class="ph-title">🤖 S.I.D.E. AI</div>
+        <div id="aiCallCounter" class="ph-count" style="font-size:9px;cursor:default">30 AI calls left today</div>
         <div id="picksDate" class="ph-count" style="display:none"></div>
       </div>
       <div class="edge-picks-bar">
@@ -769,6 +770,73 @@ body{overflow-y:auto}
       <p><strong style="color:var(--text)">5. YOUR RIGHTS</strong><br>You may request deletion of your account and data at any time by emailing support@sharpshadowai.com. We will process deletion requests within 30 days.</p>
       <p><strong style="color:var(--text)">6. COOKIES</strong><br>We use minimal browser storage (localStorage) to keep you logged in. We do not use tracking cookies or advertising cookies.</p>
       <p><strong style="color:var(--text)">7. CONTACT</strong><br>For privacy questions, contact support@sharpshadowai.com</p>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ MODAL -->
+<div id="faqModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;overflow-y:auto;padding:40px 20px">
+  <div style="max-width:700px;margin:0 auto;background:var(--s1);border:1px solid var(--b2);padding:40px;position:relative">
+    <button onclick="document.getElementById('faqModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    <div style="font-family:Orbitron,sans-serif;font-size:18px;font-weight:900;color:var(--cyan);margin-bottom:8px">FREQUENTLY ASKED QUESTIONS</div>
+    <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:28px;letter-spacing:1px">// QUICK ANSWERS TO COMMON QUESTIONS //</div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO I LOG BACK IN?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Go to sharpshadowai.com, click LOG IN in the top right, and enter your email and password you used when you signed up.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO I CANCEL MY SUBSCRIPTION?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Log in, click MANAGE SUB in the top navigation bar, then click Cancel subscription. You keep full access until your billing period ends. No further charges after that.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">WILL I BE CHARGED DURING THE FREE TRIAL?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">No. Your card is saved but not charged until day 3. If you cancel before day 3, you pay nothing at all.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">CAN I GET A REFUND?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Monthly subscribers can request a full refund within 24 hours of their first $39.99 charge by emailing support@sharpshadowai.com. Annual plans are non-refundable.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--green);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">WHAT IS S.I.D.E. AI?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">S.I.D.E. AI stands for Sports Intelligence Data Engine. It's your personal AI sports betting analyst — ask it anything about any game, team, line, or matchup and it searches live web data before answering. Available 24/7, never stale data.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--green);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">WHY IS S.I.D.E. AI SLOW SOMETIMES?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">S.I.D.E. AI searches the live web before answering, which takes 5-15 seconds. This is normal — it's pulling real current data, not guessing from old information.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">WHAT SPORTS DOES SHARP SHADOW AI COVER?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">NFL, NBA, MLB, NHL, MLS, EPL (English Premier League), UEFA Champions League, FIFA World Cup, and Tennis (Wimbledon). More sports added regularly.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO LIVE SIGNALS WORK?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Our system monitors line movement across 10+ sportsbooks every 10 minutes. When a line moves fast or against public betting, that's sharp money — we flag it instantly showing exactly which side to bet and how strong the signal is.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--red);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">DOES SHARP SHADOW AI GUARANTEE WINS?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">No. Sharp Shadow AI provides data, analysis, and AI-generated opinions for informational and entertainment purposes only. Nothing on this platform guarantees a winning outcome. Sports betting involves risk — never bet more than you can afford to lose. Must be 21+ in a legal jurisdiction.</div>
+      </div>
+
+      <div style="border-left:3px solid var(--cyan);padding-left:16px">
+        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO I CONTACT SUPPORT?</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a> — we respond within 24 hours, 7 days a week.</div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--b1);text-align:center">
+      <button onclick="document.getElementById('faqModal').style.display='none'" style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;background:var(--cyan);color:var(--bg);border:none;padding:12px 32px;cursor:pointer;letter-spacing:2px">CLOSE</button>
     </div>
   </div>
 </div>
@@ -1034,6 +1102,8 @@ async function loadApp(){
   setInterval(fetchSignals, 60000);
   // Auto load picks in background
   setTimeout(function(){ loadPicks(); }, 500);
+  // Initialize AI call counter
+  updateAiCallDisplay();
   // Animate hero stats
   animCount('hs1', 34, '', 1200);
 }
@@ -1161,6 +1231,29 @@ function askEdge(msg){
   sendEdge();
 }
 
+// Track daily AI call count in localStorage
+function getAiCallCount(){
+  var today = new Date().toDateString();
+  var data = JSON.parse(localStorage.getItem('ss_ai_calls') || '{"date":"","count":0}');
+  if(data.date !== today) return 0;
+  return data.count;
+}
+function incrementAiCallCount(){
+  var today = new Date().toDateString();
+  var count = getAiCallCount() + 1;
+  localStorage.setItem('ss_ai_calls', JSON.stringify({date:today, count:count}));
+  updateAiCallDisplay();
+}
+function updateAiCallDisplay(){
+  var count = getAiCallCount();
+  var remaining = 30 - count;
+  var el = document.getElementById('aiCallCounter');
+  if(el){
+    el.textContent = remaining + ' AI calls left today';
+    el.style.color = remaining <= 5 ? 'var(--red)' : remaining <= 10 ? 'var(--yellow)' : 'var(--muted)';
+  }
+}
+
 function sendEdge(){
   var input = document.getElementById('edgeInput');
   var msg = input ? input.value.trim() : '';
@@ -1174,20 +1267,28 @@ function sendEdge(){
   var typing = addTyping();
   edgeHistory.push({role:'user',content:msg});
   var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.type+', moved '+s.mov+')';}).join(', ');
-  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the most powerful sports betting analyst. Today is June 12 2026. You have live web search. Search for current games and injuries. Give sharp confident predictions with real stats. Current signals: ' + sigCtx;
+  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the most powerful sports betting analyst. Today is ' + new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) + '. You have live web search. Always search for current games and injuries before answering. Give sharp confident predictions with real stats. Current signals: ' + sigCtx;
   fetch('/api/edge', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:edgeHistory})
   }).then(function(r){return r.json();}).then(function(data){
     var reply = data.content ? data.content.map(function(c){return c.text||'';}).join('') : 'No response';
+    // Check if rate limited
+    if(data.error === 'Daily limit reached' || (reply && reply.includes('daily limit of 30'))){
+      if(typing) typing.remove();
+      addMsg('⚠️ You have used all 30 of your S.I.D.E. AI calls for today. Your limit resets at midnight. Come back tomorrow for fresh analysis! In the meantime, check your Daily Picks and Live Signals panels.', 'bot');
+      if(btn){btn.disabled = false; btn.textContent = 'SEND';}
+      return;
+    }
+    incrementAiCallCount();
     edgeHistory.push({role:'assistant',content:reply});
     if(typing) typing.remove();
     addMsg(reply, 'bot');
     if(btn){btn.disabled = false; btn.textContent = 'SEND';}
   }).catch(function(e){
     if(typing) typing.remove();
-    addMsg('Connection error. Make sure server is running.', 'bot');
+    addMsg('Connection error. Please try again in a moment.', 'bot');
     if(btn){btn.disabled = false; btn.textContent = 'SEND';}
   });
 }
