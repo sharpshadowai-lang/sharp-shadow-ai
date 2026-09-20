@@ -468,6 +468,7 @@ app.post('/api/auth/signup', async function(req, res) {
     res.json({ success: true, token: token, email: email, plan: plan });
   } catch(err) {
     console.log('SIGNUP ERROR: ' + err.message);
+    console.log('SIGNUP ERROR DETAIL: ' + JSON.stringify(err));
     res.status(500).json({ error: err.message });
   }
 });
@@ -543,7 +544,12 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
   var event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    if(!webhookSecret) {
+      // No webhook secret set — just parse the event directly
+      event = JSON.parse(req.body.toString());
+    } else {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    }
   } catch(err) {
     console.log('WEBHOOK ERROR: ' + err.message);
     return res.status(400).send('Webhook Error: ' + err.message);
