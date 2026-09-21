@@ -561,21 +561,9 @@ app.post('/api/auth/forgot-password', async function(req, res) {
     var resetToken = jwt.sign({ id: result.data.id, email: email, type: 'reset' }, JWT_SECRET, { expiresIn: '1h' });
     var resetUrl = (process.env.APP_URL || 'https://sharpshadowai.com') + '?reset=' + resetToken;
 
-    // Send email via Zoho SMTP
-    var nodemailer = require('nodemailer');
-    var transporter = nodemailer.createTransport({
-      host: 'smtp.zoho.com',
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      auth: {
-        user: process.env.ZOHO_EMAIL,
-        pass: process.env.ZOHO_PASSWORD
-      }
-    });
-
-    await transporter.sendMail({
-      from: '"Sharp Shadow AI" <' + process.env.ZOHO_EMAIL + '>',
+    // Send email via Resend API
+    await axios.post('https://api.resend.com/emails', {
+      from: 'Sharp Shadow AI <onboarding@resend.dev>',
       to: email,
       subject: 'Reset Your Sharp Shadow AI Password',
       html: `
@@ -587,6 +575,11 @@ app.post('/api/auth/forgot-password', async function(req, res) {
           <p style="color:#4a7a8a;font-size:12px">Sharp Shadow AI · support@sharpshadowai.com</p>
         </div>
       `
+    }, {
+      headers: {
+        'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
+        'Content-Type': 'application/json'
+      }
     });
 
     console.log('PASSWORD RESET EMAIL SENT: ' + email);
