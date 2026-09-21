@@ -997,6 +997,9 @@ function signOut(){
   localStorage.removeItem('ss_access');
   localStorage.removeItem('ss_plan');
   localStorage.removeItem('ss_since');
+  localStorage.removeItem('ss_token');
+  localStorage.removeItem('ss_email');
+  localStorage.removeItem('ss_ai_calls');
   goHome();
   showToast('Signed out successfully.');
 }
