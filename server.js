@@ -24,15 +24,11 @@ let gamesCache = [];
 let lastUpdated = null;
 
 const SPORTS = [
-  'basketball_nba',
-  'baseball_mlb',
   'americanfootball_nfl',
-  'icehockey_nhl',
-  'soccer_usa_mls',
-  'soccer_epl',
-  'soccer_uefa_champs_league',
-  'soccer_fifa_world_cup',
-  'tennis_atp_wimbledon'
+  'baseball_mlb',
+  'basketball_nba',
+  'americanfootball_ncaaf',
+  'basketball_ncaab'
 ];
 
 async function fetchOdds() {
@@ -65,7 +61,13 @@ async function fetchOdds() {
 }
 
 function getSportName(key) {
-  var m = {basketball_nba:'NBA',baseball_mlb:'MLB',americanfootball_nfl:'NFL',icehockey_nhl:'NHL',soccer_usa_mls:'MLS',soccer_epl:'EPL',soccer_uefa_champs_league:'UCL',soccer_fifa_world_cup:'WORLDCUP',tennis_atp_wimbledon:'TENNIS'};
+  var m = {
+    americanfootball_nfl:'NFL',
+    baseball_mlb:'MLB',
+    basketball_nba:'NBA',
+    americanfootball_ncaaf:'NCAAF',
+    basketball_ncaab:'NCAAB'
+  };
   return m[key] || 'SPORT';
 }
 
@@ -333,17 +335,54 @@ app.get('/api/odds', function(req, res) {
 });
 
 
-// Rate limiter for S.I.D.E. AI — 30 calls per IP per day
+// Cost-based rate limiter — trial vs paid limits
 var aiCallTracker = {};
-function checkRateLimit(ip) {
+var COST_PER_CALL = 0.08;        // estimated average cost per AI call
+var COST_PER_PICKS = 0.15;       // estimated cost per daily picks generation
+
+// Trial limits: 5 AI calls + 2 daily picks per day
+var TRIAL_CALL_LIMIT = 5;
+var TRIAL_PICKS_LIMIT = 2;
+
+// Paid limits: 10 AI calls + unlimited picks (cached anyway)
+var PAID_CALL_LIMIT = 10;
+var PAID_PICKS_LIMIT = 999;
+
+function getTracker(ip) {
   var now = Date.now();
   var dayMs = 24 * 60 * 60 * 1000;
-  if(!aiCallTracker[ip]) aiCallTracker[ip] = { count: 0, resetAt: now + dayMs };
-  if(now > aiCallTracker[ip].resetAt) {
-    aiCallTracker[ip] = { count: 0, resetAt: now + dayMs };
+  if(!aiCallTracker[ip] || now > aiCallTracker[ip].resetAt) {
+    aiCallTracker[ip] = { calls: 0, picks: 0, resetAt: now + dayMs };
   }
-  aiCallTracker[ip].count++;
-  return aiCallTracker[ip].count <= 30;
+  return aiCallTracker[ip];
+}
+
+function checkRateLimit(ip, isTrial, type) {
+  var tracker = getTracker(ip);
+  var callLimit = isTrial ? TRIAL_CALL_LIMIT : PAID_CALL_LIMIT;
+  var picksLimit = isTrial ? TRIAL_PICKS_LIMIT : PAID_PICKS_LIMIT;
+
+  if(type === 'picks') {
+    if(tracker.picks >= picksLimit) return false;
+    tracker.picks++;
+    return true;
+  } else {
+    if(tracker.calls >= callLimit) return false;
+    tracker.calls++;
+    return true;
+  }
+}
+
+function getRemainingCalls(ip, isTrial) {
+  var tracker = getTracker(ip);
+  var callLimit = isTrial ? TRIAL_CALL_LIMIT : PAID_CALL_LIMIT;
+  return Math.max(0, callLimit - tracker.calls);
+}
+
+function getRemainingPicks(ip, isTrial) {
+  var tracker = getTracker(ip);
+  var picksLimit = isTrial ? TRIAL_PICKS_LIMIT : PAID_PICKS_LIMIT;
+  return Math.max(0, picksLimit - tracker.picks);
 }
 
 // Clean up old entries every hour
@@ -356,14 +395,37 @@ setInterval(function() {
 
 app.post('/api/edge', async function(req, res) {
   var ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-  if(!checkRateLimit(ip)) {
-    console.log('EDGE AI RATE LIMITED: ' + ip);
+  
+  // Determine if trial or paid user from token
+  var isTrial = true; // default to trial limits for safety
+  var callType = req.body.callType || 'chat'; // 'chat' or 'picks'
+  try {
+    var token = req.body.token || req.headers['authorization'] || '';
+    if(token) {
+      var decoded = jwt.verify(token, JWT_SECRET);
+      isTrial = decoded.plan === 'trial';
+    }
+  } catch(e) { isTrial = true; }
+
+  var remaining = getRemainingCalls(ip, isTrial);
+  
+  if(!checkRateLimit(ip, isTrial, callType)) {
+    console.log('EDGE AI RATE LIMITED: ' + ip + ' (trial: ' + isTrial + ', type: ' + callType + ')');
+    var limitMsg = isTrial 
+      ? 'You have reached your trial limit of ' + TRIAL_CALL_LIMIT + ' S.I.D.E. AI calls per day. Start your subscription to unlock ' + PAID_CALL_LIMIT + ' calls per day!'
+      : 'You have reached your daily S.I.D.E. AI limit. Your limit resets at midnight. Come back tomorrow for fresh analysis!';
+    if(callType === 'picks') {
+      limitMsg = isTrial
+        ? 'You have reached your trial limit of ' + TRIAL_PICKS_LIMIT + ' Daily Picks refreshes. Subscribe to unlock more!'
+        : 'Daily picks limit reached. Come back tomorrow!';
+    }
     return res.status(429).json({ 
       error: 'Daily limit reached',
-      content: [{type:'text', text:'You have reached your daily limit of 30 S.I.D.E. AI calls. Your limit resets at midnight. Upgrade to annual plan for higher limits.'}]
+      remaining: 0,
+      content: [{type:'text', text:'⚠️ ' + limitMsg}]
     });
   }
-  console.log('EDGE AI CALLED');
+  console.log('EDGE AI CALLED - ' + (isTrial ? 'TRIAL' : 'PAID') + ' user - ' + callType + ' - remaining: ' + getRemainingCalls(ip, isTrial));
   try {
     var response = await axios.post('https://api.anthropic.com/v1/messages', {
       model: req.body.model || 'claude-haiku-4-5-20251001',
@@ -379,7 +441,10 @@ app.post('/api/edge', async function(req, res) {
       }
     });
     console.log('EDGE AI SUCCESS');
-    res.json(response.data);
+    var responseData = response.data;
+    responseData.remaining = getRemainingCalls(ip, isTrial);
+    responseData.remainingPicks = getRemainingPicks(ip, isTrial);
+    res.json(responseData);
   } catch (err) {
     console.log('EDGE AI ERROR: ' + (err.response ? err.response.status : err.message));
     if (err.response && err.response.data) {
