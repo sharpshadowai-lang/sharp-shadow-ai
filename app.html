@@ -1046,6 +1046,8 @@ function showForgotPassword(){
   document.getElementById('authForgotView').style.display = 'block';
   document.getElementById('authSignupView').style.display = 'none';
   document.getElementById('authResetView').style.display = 'none';
+  document.getElementById('forgotMsg').style.display = 'none';
+  document.getElementById('forgotEmail').value = '';
   setTimeout(function(){ document.getElementById('forgotEmail').focus(); }, 100);
 }
 
@@ -1054,6 +1056,7 @@ function showLoginView(){
   document.getElementById('authForgotView').style.display = 'none';
   document.getElementById('authSignupView').style.display = 'none';
   document.getElementById('authResetView').style.display = 'none';
+  document.getElementById('loginError').style.display = 'none';
 }
 
 async function submitForgotPassword(){
@@ -1116,7 +1119,9 @@ async function submitResetPassword(){
 function openLoginModal(){
   document.getElementById('loginModal').style.display = 'flex';
   document.getElementById('authLoginView').style.display = 'block';
+  document.getElementById('authForgotView').style.display = 'none';
   document.getElementById('authSignupView').style.display = 'none';
+  document.getElementById('authResetView').style.display = 'none';
   document.getElementById('loginError').style.display = 'none';
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
