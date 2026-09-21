@@ -543,6 +543,90 @@ app.post('/api/auth/signup', async function(req, res) {
   }
 });
 
+// Forgot password — sends reset email via Zoho SMTP
+app.post('/api/auth/forgot-password', async function(req, res) {
+  try {
+    var email = (req.body.email || '').toLowerCase().trim();
+    if(!email) return res.status(400).json({ error: 'Email required' });
+
+    // Check if user exists
+    var result = await supabase.from('users').select('id, email').eq('email', email).single();
+    
+    // Always return success even if email not found (security best practice)
+    if(!result.data) {
+      return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+    }
+
+    // Generate reset token
+    var resetToken = jwt.sign({ id: result.data.id, email: email, type: 'reset' }, JWT_SECRET, { expiresIn: '1h' });
+    var resetUrl = (process.env.APP_URL || 'https://sharpshadowai.com') + '?reset=' + resetToken;
+
+    // Send email via Zoho SMTP
+    var nodemailer = require('nodemailer');
+    var transporter = nodemailer.createTransport({
+      host: 'smtp.zoho.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.ZOHO_EMAIL,
+        pass: process.env.ZOHO_PASSWORD
+      }
+    });
+
+    await transporter.sendMail({
+      from: '"Sharp Shadow AI" <' + process.env.ZOHO_EMAIL + '>',
+      to: email,
+      subject: 'Reset Your Sharp Shadow AI Password',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#020408;color:#e8f4f8;padding:32px">
+          <h2 style="color:#00f5ff;font-size:20px;letter-spacing:2px">SHARP SHADOW AI</h2>
+          <p style="color:#9ec8d8;font-size:14px;line-height:1.6">You requested a password reset. Click the button below to set a new password. This link expires in 1 hour.</p>
+          <a href="${resetUrl}" style="display:inline-block;background:#00f5ff;color:#020408;font-weight:800;padding:14px 32px;text-decoration:none;font-size:14px;letter-spacing:1px;margin:20px 0">RESET MY PASSWORD</a>
+          <p style="color:#4a7a8a;font-size:12px">If you didn't request this, ignore this email. Your password won't change.</p>
+          <p style="color:#4a7a8a;font-size:12px">Sharp Shadow AI · support@sharpshadowai.com</p>
+        </div>
+      `
+    });
+
+    console.log('PASSWORD RESET EMAIL SENT: ' + email);
+    res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+  } catch(err) {
+    console.log('FORGOT PASSWORD ERROR: ' + err.message);
+    res.status(500).json({ error: 'Failed to send reset email. Please contact support@sharpshadowai.com' });
+  }
+});
+
+// Reset password — called when customer clicks link in email
+app.post('/api/auth/reset-password', async function(req, res) {
+  try {
+    var token = req.body.token || '';
+    var password = req.body.password || '';
+
+    if(!token || !password) return res.status(400).json({ error: 'Token and password required' });
+    if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    // Verify reset token
+    var decoded = jwt.verify(token, JWT_SECRET);
+    if(decoded.type !== 'reset') return res.status(400).json({ error: 'Invalid reset token' });
+
+    // Hash new password
+    var hash = await bcrypt.hash(password, 10);
+
+    // Update password in database
+    var result = await supabase.from('users').update({ password_hash: hash }).eq('id', decoded.id);
+    if(result.error) throw result.error;
+
+    console.log('PASSWORD RESET SUCCESS: ' + decoded.email);
+    res.json({ success: true, message: 'Password updated successfully. Please log in.' });
+  } catch(err) {
+    console.log('RESET PASSWORD ERROR: ' + err.message);
+    if(err.name === 'TokenExpiredError') {
+      return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Log in
 app.post('/api/auth/login', async function(req, res) {
   try {
