@@ -324,11 +324,38 @@ body{overflow-y:auto}
         <div class="modal-title">SIGN <span>IN</span></div>
         <div class="modal-sub" style="margin-bottom:20px">Welcome back. Enter your email and password to access your account.</div>
         <input id="loginEmail" type="email" placeholder="Email address" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
-        <input id="loginPassword" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
+        <input id="loginPassword" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:4px;outline:none">
+        <div style="text-align:right;margin-bottom:12px">
+          <a href="#" onclick="showForgotPassword();return false;" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none">Forgot password?</a>
+        </div>
         <button class="modal-btn" onclick="submitLogin()" style="width:100%">LOG IN</button>
         <div id="loginError" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);text-align:center;margin-top:10px;display:none"></div>
         <div class="modal-note" style="margin-top:16px">// NO ACCOUNT YET? //</div>
         <button onclick="closeLoginModal();openModal()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--b2);color:var(--cyan);font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer">START FREE TRIAL</button>
+      </div>
+
+      <!-- Forgot Password View -->
+      <div id="authForgotView" style="display:none">
+        <div class="modal-eyebrow">// RESET PASSWORD //</div>
+        <div class="modal-title">FORGOT <span>PASSWORD</span></div>
+        <div class="modal-sub" style="margin-bottom:20px">Enter your email and we'll send you a reset link.</div>
+        <input id="forgotEmail" type="email" placeholder="Email address" onkeydown="if(event.key==='Enter')submitForgotPassword()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
+        <button class="modal-btn" onclick="submitForgotPassword()" style="width:100%">SEND RESET LINK</button>
+        <div id="forgotMsg" style="font-family:Share Tech Mono,monospace;font-size:10px;text-align:center;margin-top:10px;display:none"></div>
+        <div class="modal-note" style="margin-top:16px">
+          <a href="#" onclick="showLoginView();return false;" style="color:var(--cyan)">← Back to login</a>
+        </div>
+      </div>
+
+      <!-- Reset Password View (shown when customer clicks email link) -->
+      <div id="authResetView" style="display:none">
+        <div class="modal-eyebrow">// NEW PASSWORD //</div>
+        <div class="modal-title">RESET <span>PASSWORD</span></div>
+        <div class="modal-sub" style="margin-bottom:20px">Enter your new password below.</div>
+        <input id="resetPassword" type="password" placeholder="New password (min 6 characters)" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
+        <input id="resetPassword2" type="password" placeholder="Confirm new password" onkeydown="if(event.key==='Enter')submitResetPassword()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
+        <button class="modal-btn" onclick="submitResetPassword()" style="width:100%">SET NEW PASSWORD</button>
+        <div id="resetMsg" style="font-family:Share Tech Mono,monospace;font-size:10px;text-align:center;margin-top:10px;display:none"></div>
       </div>
 
       <!-- Signup View (shown after payment) -->
@@ -930,7 +957,17 @@ var parlayLegs = [];
   var params = new URLSearchParams(window.location.search);
   var checkout = params.get('checkout');
   var plan = params.get('plan');
-  if(checkout === 'success'){
+  var reset = params.get('reset');
+  if(reset){
+    window.history.replaceState({}, '', '/');
+    window.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('loginModal').style.display = 'flex';
+      document.getElementById('authLoginView').style.display = 'none';
+      document.getElementById('authForgotView').style.display = 'none';
+      document.getElementById('authSignupView').style.display = 'none';
+      document.getElementById('authResetView').style.display = 'block';
+    });
+  } else if(checkout === 'success'){
     // Clean up URL
     window.history.replaceState({}, '', '/');
     window.addEventListener('DOMContentLoaded', function(){
@@ -1002,6 +1039,78 @@ function signOut(){
   localStorage.removeItem('ss_ai_calls');
   goHome();
   showToast('Signed out successfully.');
+}
+
+function showForgotPassword(){
+  document.getElementById('authLoginView').style.display = 'none';
+  document.getElementById('authForgotView').style.display = 'block';
+  document.getElementById('authSignupView').style.display = 'none';
+  document.getElementById('authResetView').style.display = 'none';
+  setTimeout(function(){ document.getElementById('forgotEmail').focus(); }, 100);
+}
+
+function showLoginView(){
+  document.getElementById('authLoginView').style.display = 'block';
+  document.getElementById('authForgotView').style.display = 'none';
+  document.getElementById('authSignupView').style.display = 'none';
+  document.getElementById('authResetView').style.display = 'none';
+}
+
+async function submitForgotPassword(){
+  var btn = document.querySelector('#authForgotView .modal-btn');
+  var email = document.getElementById('forgotEmail').value.trim();
+  var msgEl = document.getElementById('forgotMsg');
+  msgEl.style.display = 'none';
+
+  if(!email){ msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Please enter your email.'; msgEl.style.display = 'block'; return; }
+
+  btn.textContent = 'SENDING...'; btn.disabled = true;
+  try{
+    var r = await fetch('/api/auth/forgot-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email})});
+    var data = await r.json();
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = 'Reset link sent! Check your email inbox.';
+    msgEl.style.display = 'block';
+  } catch(e){
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Connection error. Please try again.';
+    msgEl.style.display = 'block';
+  }
+  btn.textContent = 'SEND RESET LINK'; btn.disabled = false;
+}
+
+async function submitResetPassword(){
+  var btn = document.querySelector('#authResetView .modal-btn');
+  var password = document.getElementById('resetPassword').value;
+  var password2 = document.getElementById('resetPassword2').value;
+  var token = new URLSearchParams(window.location.search).get('reset');
+  var msgEl = document.getElementById('resetMsg');
+  msgEl.style.display = 'none';
+
+  if(password.length < 6){ msgEl.style.color='var(--red)'; msgEl.textContent='Password must be at least 6 characters.'; msgEl.style.display='block'; return; }
+  if(password !== password2){ msgEl.style.color='var(--red)'; msgEl.textContent='Passwords do not match.'; msgEl.style.display='block'; return; }
+
+  btn.textContent = 'SAVING...'; btn.disabled = true;
+  try{
+    var r = await fetch('/api/auth/reset-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token, password:password})});
+    var data = await r.json();
+    if(data.success){
+      msgEl.style.color = 'var(--green)';
+      msgEl.textContent = 'Password updated! You can now log in.';
+      msgEl.style.display = 'block';
+      window.history.replaceState({}, '', '/');
+      setTimeout(function(){ showLoginView(); }, 2000);
+    } else {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = data.error || 'Reset failed. Please try again.';
+      msgEl.style.display = 'block';
+    }
+  } catch(e){
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Connection error. Please try again.';
+    msgEl.style.display = 'block';
+  }
+  btn.textContent = 'SET NEW PASSWORD'; btn.disabled = false;
 }
 
 function openLoginModal(){
