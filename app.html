@@ -396,8 +396,8 @@ body{overflow-y:auto}
         <div style="display:flex;align-items:flex-start;gap:10px">
           <span style="color:#00ff88;font-size:16px;flex-shrink:0">▸</span>
           <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#00ff88;letter-spacing:1px">9 SPORTS COVERED</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">NFL · NBA · MLB · NHL · MLS · EPL · UCL · Tennis</div>
+            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#00ff88;letter-spacing:1px">5 SPORTS COVERED</div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">NFL · MLB · NBA · NCAA Football · NCAA Basketball</div>
           </div>
         </div>
       </div>
@@ -550,7 +550,7 @@ body{overflow-y:auto}
           </div>
           <div class="pc-combo-arrow">→</div>
           <div class="pc-combo-item">
-            <div class="pc-price" style="font-size:48px">$39<span class="pc-price-cents">.99</span></div>
+            <div class="pc-price" style="font-size:48px">$79<span class="pc-price-cents">.99</span></div>
             <div class="pc-period">per month after</div>
           </div>
         </div>
@@ -563,7 +563,7 @@ body{overflow-y:auto}
           <div class="pc-feat">Daily AI picks with confidence ratings</div>
           <div class="pc-feat">Best line finder across 10+ sportsbooks</div>
           <div class="pc-feat">Parlay builder with AI risk analysis</div>
-          <div class="pc-feat">NFL · NBA · MLB · NHL · MLS · EPL · UCL · Tennis</div>
+          <div class="pc-feat">NFL · MLB · NBA · NCAA Football · NCAA Basketball</div>
           <div class="pc-feat" style="color:var(--green)">24hr refund on your first $79.99 charge</div>
         </div>
         <button class="pc-btn" onclick="selectPlan('trial');openModal()">START FREE TRIAL</button>
@@ -766,14 +766,10 @@ body{overflow-y:auto}
       <div class="odds-filters" style="flex-wrap:wrap">
         <button class="of-btn active" onclick="filterOdds(this,'ALL')">ALL</button>
         <button class="of-btn" onclick="filterOdds(this,'NFL')">NFL</button>
-        <button class="of-btn" onclick="filterOdds(this,'NBA')">NBA</button>
         <button class="of-btn" onclick="filterOdds(this,'MLB')">MLB</button>
-        <button class="of-btn" onclick="filterOdds(this,'NHL')">NHL</button>
-        <button class="of-btn" onclick="filterOdds(this,'EPL')">EPL</button>
-        <button class="of-btn" onclick="filterOdds(this,'UCL')">UCL</button>
-        <button class="of-btn" onclick="filterOdds(this,'WORLDCUP')">WORLD CUP</button>
-        <button class="of-btn" onclick="filterOdds(this,'MLS')">MLS</button>
-        <button class="of-btn" onclick="filterOdds(this,'TENNIS')">TENNIS</button>
+        <button class="of-btn" onclick="filterOdds(this,'NBA')">NBA</button>
+        <button class="of-btn" onclick="filterOdds(this,'NCAAF')">NCAAF</button>
+        <button class="of-btn" onclick="filterOdds(this,'NCAAB')">NCAAB</button>
       </div>
       <div class="odds-list" id="oddsList">
         <div class="empty-signals">
@@ -1421,9 +1417,9 @@ async function loadPicks(){
     var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
     // Each customer gets a unique starting point on the slate
     var userSeed = Math.floor(Math.random() * 9999);
-    var sports = ['NFL','NBA','MLB','NHL','EPL','World Cup','MLS','Tennis'];
+    var sports = ['NFL','MLB','NBA','NCAAF','NCAAB'];
     var startSport = sports[userSeed % sports.length];
-    var r = await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:localStorage.getItem('ss_token')||'',callType:'picks',model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), the sharpest sports betting analyst in the world. You have access to live web search. Today is ' + today + ' and current time is ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}) + '. Your ONLY goal is to find the 3 highest probability winning bets on games that have NOT yet started. Search across all sports — NFL, NBA, MLB, NHL, soccer, and more. Start by looking at ' + startSport + ' first, then expand to other sports. SKIP any game that has already started or ended. Analyze: sharp money movement, line value vs opening, injuries, matchups, weather, public vs sharp splits. Only recommend bets with genuine edge. Be brutally honest — PASS on bad spots. For each pick format exactly: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [2-3 key facts] | SHARP ANGLE: [why sharp money likes this] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Find the 3 best upcoming bets for today ' + today + '. Only pick games that have NOT started yet. Search current games across all sports. I want your highest confidence plays with real data behind them. Start with ' + startSport + ' but go wherever the value is.'}]})});
+    var r = await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:localStorage.getItem('ss_token')||'',callType:'picks',model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), the sharpest sports betting analyst in the world. You have access to live web search. Today is ' + today + ' and current time is ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}) + '. Your ONLY goal is to find the 3 highest probability winning bets on games that have NOT yet started. Search across all sports — NFL, MLB, NBA, NCAA Football, and NCAA Basketball. Start by looking at ' + startSport + ' first, then expand to other sports. SKIP any game that has already started or ended. Analyze: sharp money movement, line value vs opening, injuries, matchups, weather, public vs sharp splits. Only recommend bets with genuine edge. Be brutally honest — PASS on bad spots. For each pick format exactly: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [2-3 key facts] | SHARP ANGLE: [why sharp money likes this] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Find the 3 best upcoming bets for today ' + today + '. Only pick games that have NOT started yet. Search current games across all sports. I want your highest confidence plays with real data behind them. Start with ' + startSport + ' but go wherever the value is.'}]})});
     var data = await r.json();
     var text = data.content ? data.content.map(function(c){return c.text||'';}).join('') : '';
     var loading2 = document.getElementById('picksLoading');
