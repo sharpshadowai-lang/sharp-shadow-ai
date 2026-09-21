@@ -565,8 +565,9 @@ app.post('/api/auth/forgot-password', async function(req, res) {
     var nodemailer = require('nodemailer');
     var transporter = nodemailer.createTransport({
       host: 'smtp.zoho.com',
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: {
         user: process.env.ZOHO_EMAIL,
         pass: process.env.ZOHO_PASSWORD
