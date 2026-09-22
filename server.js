@@ -358,6 +358,9 @@ function getTracker(ip) {
 }
 
 function checkRateLimit(ip, isTrial, type) {
+  // Admin accounts get unlimited calls
+  if(!isTrial && type === 'admin') return true;
+  
   var tracker = getTracker(ip);
   var callLimit = isTrial ? TRIAL_CALL_LIMIT : PAID_CALL_LIMIT;
   var picksLimit = isTrial ? TRIAL_PICKS_LIMIT : PAID_PICKS_LIMIT;
@@ -396,20 +399,22 @@ setInterval(function() {
 app.post('/api/edge', async function(req, res) {
   var ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
   
-  // Determine if trial or paid user from token
-  var isTrial = true; // default to trial limits for safety
-  var callType = req.body.callType || 'chat'; // 'chat' or 'picks'
+  // Determine if trial, paid, or admin user from token
+  var isTrial = true;
+  var isAdmin = false;
+  var callType = req.body.callType || 'chat';
   try {
     var token = req.body.token || req.headers['authorization'] || '';
     if(token) {
       var decoded = jwt.verify(token, JWT_SECRET);
-      isTrial = decoded.plan === 'trial';
+      isAdmin = decoded.plan === 'admin';
+      isTrial = !isAdmin && decoded.plan === 'trial';
     }
   } catch(e) { isTrial = true; }
 
-  var remaining = getRemainingCalls(ip, isTrial);
+  var remaining = isAdmin ? 999 : getRemainingCalls(ip, isTrial);
   
-  if(!checkRateLimit(ip, isTrial, callType)) {
+  if(!isAdmin && !checkRateLimit(ip, isTrial, callType)) {
     console.log('EDGE AI RATE LIMITED: ' + ip + ' (trial: ' + isTrial + ', type: ' + callType + ')');
     var limitMsg = isTrial 
       ? 'You have reached your trial limit of ' + TRIAL_CALL_LIMIT + ' S.I.D.E. AI calls per day. Start your subscription to unlock ' + PAID_CALL_LIMIT + ' calls per day!'
@@ -442,8 +447,8 @@ app.post('/api/edge', async function(req, res) {
     });
     console.log('EDGE AI SUCCESS');
     var responseData = response.data;
-    responseData.remaining = getRemainingCalls(ip, isTrial);
-    responseData.remainingPicks = getRemainingPicks(ip, isTrial);
+    responseData.remaining = isAdmin ? 999 : getRemainingCalls(ip, isTrial);
+    responseData.remainingPicks = isAdmin ? 999 : getRemainingPicks(ip, isTrial);
     res.json(responseData);
   } catch (err) {
     console.log('EDGE AI ERROR: ' + (err.response ? err.response.status : err.message));
