@@ -562,8 +562,8 @@ app.post('/api/auth/forgot-password', async function(req, res) {
     var resetUrl = (process.env.APP_URL || 'https://sharpshadowai.com') + '?reset=' + resetToken;
 
     // Send email via Resend API
-    await axios.post('https://api.resend.com/emails', {
-      from: 'Sharp Shadow AI <onboarding@resend.dev>',
+    var emailRes = await axios.post('https://api.resend.com/emails', {
+      from: 'Sharp Shadow AI <support@sharpshadowai.com>',
       to: email,
       subject: 'Reset Your Sharp Shadow AI Password',
       html: `
@@ -581,6 +581,7 @@ app.post('/api/auth/forgot-password', async function(req, res) {
         'Content-Type': 'application/json'
       }
     });
+    console.log('RESEND RESPONSE: ' + JSON.stringify(emailRes.data));
 
     console.log('PASSWORD RESET EMAIL SENT: ' + email);
     res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
