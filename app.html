@@ -963,12 +963,13 @@ var currentPlan = 'trial';
 var edgeHistory = [];
 var parlayLegs = [];
 
+var resetTokenStored = null;
+
 // ===== CHECKOUT REDIRECT HANDLING =====
 (function(){
   var params = new URLSearchParams(window.location.search);
   var checkout = params.get('checkout');
   var plan = params.get('plan');
-var resetTokenStored = null;
 
   var reset = params.get('reset');
   if(reset){
