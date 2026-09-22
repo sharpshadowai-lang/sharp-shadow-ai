@@ -968,8 +968,11 @@ var parlayLegs = [];
   var params = new URLSearchParams(window.location.search);
   var checkout = params.get('checkout');
   var plan = params.get('plan');
+var resetTokenStored = null;
+
   var reset = params.get('reset');
   if(reset){
+    resetTokenStored = reset;
     window.history.replaceState({}, '', '/');
     window.addEventListener('DOMContentLoaded', function(){
       document.getElementById('loginModal').style.display = 'flex';
@@ -1119,10 +1122,11 @@ async function submitResetPassword(){
   var btn = document.querySelector('#authResetView .modal-btn');
   var password = document.getElementById('resetPassword').value;
   var password2 = document.getElementById('resetPassword2').value;
-  var token = new URLSearchParams(window.location.search).get('reset');
+  var token = resetTokenStored || new URLSearchParams(window.location.search).get('reset');
   var msgEl = document.getElementById('resetMsg');
   msgEl.style.display = 'none';
 
+  if(!token){ msgEl.style.color='var(--red)'; msgEl.textContent='Reset link expired. Please request a new one.'; msgEl.style.display='block'; return; }
   if(password.length < 6){ msgEl.style.color='var(--red)'; msgEl.textContent='Password must be at least 6 characters.'; msgEl.style.display='block'; return; }
   if(password !== password2){ msgEl.style.color='var(--red)'; msgEl.textContent='Passwords do not match.'; msgEl.style.display='block'; return; }
 
