@@ -15,6 +15,85 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sharpshadow_jwt_secret_2025';
 
 const app = express();
 app.use(cors());
+
+// ===== STRIPE WEBHOOK — must be before express.json() =====
+app.post('/webhook/stripe', express.raw({type: 'application/json'}), async function(req, res) {
+  var sig = req.headers['stripe-signature'];
+  var webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  var event;
+
+  try {
+    if(webhookSecret && sig) {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } else {
+      event = JSON.parse(req.body.toString());
+    }
+  } catch(err) {
+    console.log('WEBHOOK ERROR: ' + err.message);
+    return res.status(400).send('Webhook Error: ' + err.message);
+  }
+
+  console.log('WEBHOOK EVENT: ' + event.type);
+
+  try {
+    if(event.type === 'checkout.session.completed') {
+      var session = event.data.object;
+      var email = session.customer_details ? session.customer_details.email : null;
+      var customerId = session.customer;
+      if(email) {
+        await supabase.from('users')
+          .update({ stripe_customer_id: customerId, subscription_status: 'active' })
+          .eq('email', email.toLowerCase());
+        console.log('WEBHOOK: New customer linked - ' + email);
+      }
+    }
+
+    if(event.type === 'customer.subscription.deleted') {
+      var sub = event.data.object;
+      var customerId = sub.customer;
+      var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+      await supabase.from('users')
+        .update({ subscription_status: 'cancelled', subscription_end: periodEnd })
+        .eq('stripe_customer_id', customerId);
+      console.log('WEBHOOK: Subscription cancelled - access until ' + periodEnd);
+    }
+
+    if(event.type === 'customer.subscription.updated') {
+      var sub = event.data.object;
+      var customerId = sub.customer;
+      var status = sub.status;
+      var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+      var dbStatus = 'active';
+      var dbPlan = null;
+      if(status === 'trialing') { dbStatus = 'active'; }
+      else if(status === 'active') {
+        dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
+        dbPlan = 'monthly';
+      }
+      else if(status === 'past_due') dbStatus = 'past_due';
+      else if(status === 'canceled' || status === 'cancelled') dbStatus = 'cancelled';
+      var updateData = { subscription_status: dbStatus, subscription_end: periodEnd };
+      if(dbPlan) updateData.plan = dbPlan;
+      await supabase.from('users').update(updateData).eq('stripe_customer_id', customerId);
+      console.log('WEBHOOK: Subscription updated - ' + customerId + ' status: ' + dbStatus);
+    }
+
+    if(event.type === 'invoice.payment_failed') {
+      var invoice = event.data.object;
+      var customerId = invoice.customer;
+      await supabase.from('users')
+        .update({ subscription_status: 'past_due' })
+        .eq('stripe_customer_id', customerId);
+      console.log('WEBHOOK: Payment failed - customer ' + customerId);
+    }
+
+  } catch(err) {
+    console.log('WEBHOOK PROCESSING ERROR: ' + err.message);
+  }
+
+  res.json({ received: true });
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -770,100 +849,6 @@ app.post('/api/auth/verify', async function(req, res) {
 
 // ===== STRIPE WEBHOOK =====
 // Must use raw body for Stripe signature verification
-app.post('/webhook/stripe', express.raw({type: 'application/json'}), async function(req, res) {
-  var sig = req.headers['stripe-signature'];
-  var webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  var event;
-
-  try {
-    // Try signature verification first
-    if(webhookSecret && sig) {
-      try {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      } catch(sigErr) {
-        // If signature fails, parse directly (for debugging)
-        console.log('WEBHOOK SIG ERROR: ' + sigErr.message + ' - parsing directly');
-        event = JSON.parse(req.body.toString());
-      }
-    } else {
-      event = JSON.parse(req.body.toString());
-    }
-  } catch(err) {
-    console.log('WEBHOOK PARSE ERROR: ' + err.message);
-    return res.status(400).send('Webhook Error: ' + err.message);
-  }
-
-  console.log('WEBHOOK EVENT: ' + event.type);
-
-  try {
-    // New subscription started (free trial begins)
-    if(event.type === 'checkout.session.completed') {
-      var session = event.data.object;
-      var email = session.customer_details ? session.customer_details.email : null;
-      var customerId = session.customer;
-      if(email) {
-        await supabase.from('users')
-          .update({ stripe_customer_id: customerId, subscription_status: 'active' })
-          .eq('email', email.toLowerCase());
-        console.log('WEBHOOK: New customer linked - ' + email);
-      }
-    }
-
-    // Subscription cancelled — keep access until period end
-    if(event.type === 'customer.subscription.deleted') {
-      var sub = event.data.object;
-      var customerId = sub.customer;
-      var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
-      await supabase.from('users')
-        .update({ 
-          subscription_status: 'cancelled',
-          subscription_end: periodEnd
-        })
-        .eq('stripe_customer_id', customerId);
-      console.log('WEBHOOK: Subscription cancelled - access until ' + periodEnd + ' - customer ' + customerId);
-    }
-
-    // Subscription updated (plan change, trial ended, etc)
-    if(event.type === 'customer.subscription.updated') {
-      var sub = event.data.object;
-      var customerId = sub.customer;
-      var status = sub.status;
-      var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
-      var dbStatus = 'active';
-      var dbPlan = null; // only update plan if trial ended
-      if(status === 'trialing') { dbStatus = 'active'; }
-      else if(status === 'active') {
-        dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
-        dbPlan = 'monthly'; // trial ended, now paying
-      }
-      else if(status === 'past_due') dbStatus = 'past_due';
-      else if(status === 'canceled' || status === 'cancelled') dbStatus = 'cancelled';
-      
-      var updateData = { subscription_status: dbStatus, subscription_end: periodEnd };
-      if(dbPlan) updateData.plan = dbPlan;
-      
-      await supabase.from('users')
-        .update(updateData)
-        .eq('stripe_customer_id', customerId);
-      console.log('WEBHOOK: Subscription updated - ' + customerId + ' status: ' + dbStatus + (dbPlan ? ' plan: ' + dbPlan : ''));
-    }
-
-    // Payment failed
-    if(event.type === 'invoice.payment_failed') {
-      var invoice = event.data.object;
-      var customerId = invoice.customer;
-      await supabase.from('users')
-        .update({ subscription_status: 'past_due' })
-        .eq('stripe_customer_id', customerId);
-      console.log('WEBHOOK: Payment failed - customer ' + customerId);
-    }
-
-  } catch(err) {
-    console.log('WEBHOOK PROCESSING ERROR: ' + err.message);
-  }
-
-  res.json({ received: true });
-});
 
 // ===== MANAGE SUBSCRIPTION (Stripe Customer Portal) =====
 app.post('/api/customer-portal', async function(req, res) {
