@@ -407,8 +407,11 @@ app.post('/api/edge', async function(req, res) {
     var token = req.body.token || req.headers['authorization'] || '';
     if(token) {
       var decoded = jwt.verify(token, JWT_SECRET);
-      isAdmin = decoded.plan === 'admin';
-      isTrial = !isAdmin && decoded.plan === 'trial';
+      // Read plan from database for accuracy
+      var userResult = await supabase.from('users').select('plan').eq('id', decoded.id).single();
+      var userPlan = userResult.data ? userResult.data.plan : decoded.plan;
+      isAdmin = userPlan === 'admin';
+      isTrial = !isAdmin && (userPlan === 'trial');
     }
   } catch(e) { isTrial = true; }
 
@@ -745,16 +748,23 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
       var customerId = sub.customer;
       var status = sub.status;
       var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
-      // If cancelling at period end (cancel_at_period_end = true), keep active until then
       var dbStatus = 'active';
-      if(status === 'trialing') dbStatus = 'active';
-      else if(status === 'active') dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
+      var dbPlan = null; // only update plan if trial ended
+      if(status === 'trialing') { dbStatus = 'active'; }
+      else if(status === 'active') {
+        dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
+        dbPlan = 'monthly'; // trial ended, now paying
+      }
       else if(status === 'past_due') dbStatus = 'past_due';
       else if(status === 'canceled' || status === 'cancelled') dbStatus = 'cancelled';
+      
+      var updateData = { subscription_status: dbStatus, subscription_end: periodEnd };
+      if(dbPlan) updateData.plan = dbPlan;
+      
       await supabase.from('users')
-        .update({ subscription_status: dbStatus, subscription_end: periodEnd })
+        .update(updateData)
         .eq('stripe_customer_id', customerId);
-      console.log('WEBHOOK: Subscription updated - ' + customerId + ' status: ' + dbStatus);
+      console.log('WEBHOOK: Subscription updated - ' + customerId + ' status: ' + dbStatus + (dbPlan ? ' plan: ' + dbPlan : ''));
     }
 
     // Payment failed
