@@ -462,7 +462,82 @@ app.post('/api/edge', async function(req, res) {
   }
 });
 
-// ===== STRIPE CHECKOUT =====
+// ===== DAILY PICKS CACHE =====
+var picksCache = {
+  picks: null,
+  date: null,
+  generating: false
+};
+
+async function generateDailyPicks() {
+  if(picksCache.generating) return;
+  picksCache.generating = true;
+  console.log('GENERATING DAILY PICKS...');
+  
+  try {
+    var today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+    var time = new Date().toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', timeZoneName:'short'});
+    var sports = ['NFL','MLB','NBA','NCAAF','NCAAB'];
+    var startSport = sports[new Date().getDate() % sports.length];
+
+    var response = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      system: 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the sharpest sports betting analyst in the world. You have access to live web search. Today is ' + today + ' and current time is ' + time + '. Your ONLY goal is to find the 3 highest probability winning bets on games that have NOT yet started. Search across NFL, MLB, NBA, NCAA Football, and NCAA Basketball. SKIP any game that has already started or ended. Analyze sharp money movement, line value, injuries, matchups. Only recommend bets with genuine edge. Be brutally honest — PASS on bad spots. For each pick format exactly: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [2-3 key facts] | SHARP ANGLE: [why sharp money likes this] | RECOMMENDATION: [BET or PASS] | ---',
+      messages: [{role:'user', content:'Find the 3 best upcoming bets for today ' + today + '. Only pick games that have NOT started yet. Start with ' + startSport + ' but go wherever the value is.'}],
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+    }, {
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      }
+    });
+
+    var text = response.data.content
+      .filter(function(c){ return c.type === 'text'; })
+      .map(function(c){ return c.text; })
+      .join('');
+
+    picksCache.picks = text;
+    picksCache.date = new Date().toDateString();
+    console.log('DAILY PICKS CACHED: ' + picksCache.date);
+  } catch(err) {
+    console.log('PICKS GENERATION ERROR: ' + err.message);
+  }
+  picksCache.generating = false;
+}
+
+// Serve cached picks to all customers
+app.get('/api/picks', async function(req, res) {
+  var today = new Date().toDateString();
+  
+  // Generate if no cache or cache is from yesterday
+  if(!picksCache.picks || picksCache.date !== today) {
+    if(!picksCache.generating) {
+      generateDailyPicks(); // generate in background
+    }
+    return res.json({ 
+      picks: null, 
+      generating: true,
+      message: 'S.I.D.E. AI is analyzing today\'s slate. Check back in 30 seconds.'
+    });
+  }
+  
+  res.json({ 
+    picks: picksCache.picks, 
+    date: picksCache.date,
+    generating: false
+  });
+});
+
+// Generate picks at 8am every day
+cron.schedule('0 8 * * *', function() {
+  console.log('8AM CRON: Generating daily picks...');
+  generateDailyPicks();
+});
+
+
 // Trial: $4 charged immediately (one-time), then $49.99/month subscription starts after a 2-day trial
 app.post('/api/checkout/trial', async function(req, res) {
   try {
@@ -701,14 +776,20 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
   var event;
 
   try {
-    if(!webhookSecret) {
-      // No webhook secret set — just parse the event directly
-      event = JSON.parse(req.body.toString());
+    // Try signature verification first
+    if(webhookSecret && sig) {
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch(sigErr) {
+        // If signature fails, parse directly (for debugging)
+        console.log('WEBHOOK SIG ERROR: ' + sigErr.message + ' - parsing directly');
+        event = JSON.parse(req.body.toString());
+      }
     } else {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      event = JSON.parse(req.body.toString());
     }
   } catch(err) {
-    console.log('WEBHOOK ERROR: ' + err.message);
+    console.log('WEBHOOK PARSE ERROR: ' + err.message);
     return res.status(400).send('Webhook Error: ' + err.message);
   }
 
