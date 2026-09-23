@@ -353,7 +353,7 @@ app.get('/health', function(req, res) {
 });
 
 app.get('/api/signals', function(req, res) {
-  res.json({signals:liveSignals,count:liveSignals.length,updated:lastUpdated});
+  res.json({signals:liveSignals, count:liveSignals.length, games:gamesCache.length, updated:lastUpdated});
 });
 
 app.get('/api/games', function(req, res) {
