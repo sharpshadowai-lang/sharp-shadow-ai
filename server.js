@@ -621,6 +621,20 @@ cron.schedule('0 8 * * *', function() {
 app.post('/api/checkout/trial', async function(req, res) {
   try {
     var baseUrl = req.body.success_url || process.env.APP_URL || 'http://localhost:3001';
+    
+    // Check if email already exists in database (prevent trial abuse)
+    var email = req.body.email || '';
+    if(email) {
+      var existing = await supabase.from('users').select('id, plan, subscription_status').eq('email', email.toLowerCase().trim()).single();
+      if(existing.data) {
+        // User already exists — send them to login instead
+        return res.status(400).json({ 
+          error: 'An account with this email already exists. Please log in instead.',
+          redirect: 'login'
+        });
+      }
+    }
+
     var session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
