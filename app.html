@@ -1603,7 +1603,7 @@ async function loadPicks(){
     
     if(cachedData.generating) {
       // Picks are being generated, show message and retry in 30 seconds
-      if(loading2) loading2.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">GENERATING PICKS...</div><div class="ew-sub">S.I.D.E. AI is analyzing today's slate. Check back in 30 seconds.</div><button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">REFRESH PICKS</button>';
+      if(loading2) loading2.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">GENERATING PICKS...</div><div class="ew-sub">S.I.D.E. AI is analyzing todays slate. Check back in 30 seconds.</div><button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">REFRESH PICKS</button>';
       return;
     }
     
