@@ -64,10 +64,17 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
       var sub = event.data.object;
       var customerId = sub.customer;
       var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+      var wasTrial = sub.status === 'trialing' || (sub.trial_end && sub.trial_end > Date.now()/1000);
+      
+      // For trial cancellations — remove access immediately (no subscription_end grace period)
+      // For paid cancellations — keep access until end of billing period
       await supabase.from('users')
-        .update({ subscription_status: 'cancelled', subscription_end: periodEnd })
+        .update({ 
+          subscription_status: 'cancelled',
+          subscription_end: wasTrial ? null : periodEnd
+        })
         .eq('stripe_customer_id', customerId);
-      console.log('WEBHOOK: Subscription cancelled - access until ' + periodEnd);
+      console.log('WEBHOOK: Subscription cancelled - ' + (wasTrial ? 'TRIAL (immediate)' : 'PAID (access until ' + periodEnd + ')') + ' - customer ' + customerId);
     }
 
     if(event.type === 'customer.subscription.updated') {
@@ -873,7 +880,10 @@ app.post('/api/auth/verify', async function(req, res) {
     if(status === 'active' || status === 'trialing' || status === 'cancelling') {
       hasAccess = true;
     } else if(status === 'cancelled' && subEnd) {
-      hasAccess = new Date(subEnd) > new Date();
+      // Only allow access after cancellation if they were a PAID customer
+      // Trial cancellations should lose access immediately
+      var isPaidCancellation = result.data.plan === 'monthly' || result.data.plan === 'annual' || result.data.plan === 'admin';
+      hasAccess = isPaidCancellation && new Date(subEnd) > new Date();
     }
 
     if(!hasAccess) return res.json({ valid: false });
