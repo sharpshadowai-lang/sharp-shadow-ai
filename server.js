@@ -666,8 +666,6 @@ app.post('/api/checkout/trial', async function(req, res) {
         metadata: { trial: 'true' }
       },
       payment_method_collection: 'always',
-      // Restrict to one trial per payment method
-      customer_creation: 'always',
       success_url: baseUrl + '?checkout=success&plan=trial',
       cancel_url: (req.body.cancel_url || baseUrl) + '?checkout=cancel',
       metadata: { plan: 'trial' }
