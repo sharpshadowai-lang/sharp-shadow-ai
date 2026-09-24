@@ -41,10 +41,22 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
       var email = session.customer_details ? session.customer_details.email : null;
       var customerId = session.customer;
       if(email) {
-        await supabase.from('users')
+        // Try to link immediately
+        var updateResult = await supabase.from('users')
           .update({ stripe_customer_id: customerId, subscription_status: 'active' })
           .eq('email', email.toLowerCase());
-        console.log('WEBHOOK: New customer linked - ' + email);
+        console.log('WEBHOOK: New customer linked - ' + email + ' customer: ' + customerId);
+        
+        // Store pending link in case user hasn't created account yet
+        // We'll check this when they create their account
+        await supabase.from('users')
+          .upsert([{ 
+            email: email.toLowerCase(),
+            stripe_customer_id: customerId,
+            subscription_status: 'active',
+            plan: 'trial'
+          }], { onConflict: 'email', ignoreDuplicates: false });
+        console.log('WEBHOOK: Stripe customer stored - ' + email);
       }
     }
 
@@ -691,8 +703,18 @@ app.post('/api/auth/signup', async function(req, res) {
     if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
     // Check if email already exists
-    var existing = await supabase.from('users').select('id').eq('email', email).single();
-    if(existing.data) return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+    var existing = await supabase.from('users').select('id, stripe_customer_id').eq('email', email).single();
+    if(existing.data && existing.data.stripe_customer_id) {
+      // Account was pre-created by webhook — just add password and return token
+      var hash = await bcrypt.hash(password, 10);
+      await supabase.from('users').update({ password_hash: hash, plan: plan }).eq('email', email);
+      var token = jwt.sign({ id: existing.data.id, email: email, plan: plan }, JWT_SECRET, { expiresIn: '30d' });
+      console.log('SIGNUP: Linked existing Stripe account - ' + email);
+      return res.json({ success: true, token: token, email: email, plan: plan });
+    }
+    if(existing.data && !existing.data.stripe_customer_id) {
+      return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+    }
 
     // Hash password
     var hash = await bcrypt.hash(password, 10);
