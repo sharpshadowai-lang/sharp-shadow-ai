@@ -646,7 +646,6 @@ app.post('/api/checkout/trial', async function(req, res) {
     if(email) {
       var existing = await supabase.from('users').select('id, plan, subscription_status').eq('email', email.toLowerCase().trim()).single();
       if(existing.data) {
-        // User already exists — send them to login instead
         return res.status(400).json({ 
           error: 'An account with this email already exists. Please log in instead.',
           redirect: 'login'
@@ -663,9 +662,12 @@ app.post('/api/checkout/trial', async function(req, res) {
         trial_period_days: 2,
         trial_settings: {
           end_behavior: { missing_payment_method: 'cancel' }
-        }
+        },
+        metadata: { trial: 'true' }
       },
       payment_method_collection: 'always',
+      // Restrict to one trial per payment method
+      customer_creation: 'always',
       success_url: baseUrl + '?checkout=success&plan=trial',
       cancel_url: (req.body.cancel_url || baseUrl) + '?checkout=cancel',
       metadata: { plan: 'trial' }
