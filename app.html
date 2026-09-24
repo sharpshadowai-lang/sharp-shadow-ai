@@ -596,7 +596,7 @@ body{overflow-y:auto}
           <div class="pc-feat">Best line finder across 10+ sportsbooks</div>
           <div class="pc-feat">Parlay builder with AI risk analysis</div>
           <div class="pc-feat">NFL · MLB · NBA · NCAA Football · NCAA Basketball</div>
-          <div class="pc-feat" style="color:var(--green)">24hr refund on your first $79.99 charge</div>
+          <div class="pc-feat" style="color:var(--muted)">24hr refund on your first $79.99 charge</div>
         </div>
         <button class="pc-btn" onclick="selectPlan('trial');openModal()">START FREE TRIAL</button>
         <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted2);margin-top:12px;letter-spacing:.5px">// NO CHARGE DURING 2-DAY TRIAL · CANCEL ANYTIME AFTER //</div>
@@ -843,7 +843,7 @@ body{overflow-y:auto}
       <div class="modal-feat">Cancel anytime — no contracts</div>
     </div>
     <button class="modal-btn" id="modalBtn" onclick="subscribe()">START FREE TRIAL</button>
-    <div class="modal-note" id="modalNote">// NO CHARGE DURING TRIAL · 24HR REFUND ON THE $79.99 CHARGE //</div>
+    <div class="modal-note" id="modalNote">// NO CHARGE DURING TRIAL · CANCEL ANYTIME //</div>
   </div>
 </div>
 
@@ -1042,6 +1042,30 @@ function switchMobileTab(tab){
     document.getElementById('mTab-odds').classList.add('active');
   }
 }
+
+// Check subscription status every 5 minutes while logged in
+async function checkSubscriptionStatus(){
+  var token = localStorage.getItem('ss_token');
+  if(!token) return;
+  try {
+    var r = await fetch('/api/auth/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token})});
+    var data = await r.json();
+    if(!data.valid){
+      // Subscription cancelled or expired — force logout
+      localStorage.removeItem('ss_token');
+      localStorage.removeItem('ss_email');
+      localStorage.removeItem('ss_plan');
+      localStorage.removeItem('ss_access');
+      goHome();
+      showToast('Your subscription has ended. Please resubscribe to continue.');
+    }
+  } catch(e) { 
+    // If server unreachable, don't log out
+  }
+}
+
+// Start periodic check when app loads
+setInterval(checkSubscriptionStatus, 5 * 60 * 1000); // every 5 minutes
 
 function openApp(){
   document.getElementById('landing').style.display = 'none';
@@ -1331,6 +1355,8 @@ async function loadApp(){
   setTimeout(function(){ loadPicks(); }, 500);
   // Initialize AI call counter
   updateAiCallDisplay();
+  // Check subscription immediately when app opens
+  checkSubscriptionStatus();
   // Animate hero stats
   animCount('hs1', 34, '', 1200);
 }
@@ -1566,35 +1592,48 @@ async function loadPicks(){
   var loading = document.createElement('div');
   loading.id = 'picksLoading';
   loading.className = 'edge-welcome';
-  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">ANALYZING TODAYS GAMES...</div><div class="ew-sub">Searching for current games and sharp angles</div>';
+  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">LOADING TODAYS PICKS...</div><div class="ew-sub">Fetching S.I.D.E. AI analysis</div>';
   container.appendChild(loading);
-  try{
-    var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-    // Each customer gets a unique starting point on the slate
-    var userSeed = Math.floor(Math.random() * 9999);
-    var sports = ['NFL','MLB','NBA','NCAAF','NCAAB'];
-    var startSport = sports[userSeed % sports.length];
-    var r = await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:localStorage.getItem('ss_token')||'',callType:'picks',model:'claude-haiku-4-5-20251001',max_tokens:2000,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), the sharpest sports betting analyst in the world. You have access to live web search. Today is ' + today + ' and current time is ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}) + '. Your ONLY goal is to find the 3 highest probability winning bets on games that have NOT yet started. Search across all sports — NFL, MLB, NBA, NCAA Football, and NCAA Basketball. Start by looking at ' + startSport + ' first, then expand to other sports. SKIP any game that has already started or ended. Analyze: sharp money movement, line value vs opening, injuries, matchups, weather, public vs sharp splits. Only recommend bets with genuine edge. Be brutally honest — PASS on bad spots. For each pick format exactly: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [2-3 key facts] | SHARP ANGLE: [why sharp money likes this] | RECOMMENDATION: [BET or PASS] | ---',messages:[{role:'user',content:'Find the 3 best upcoming bets for today ' + today + '. Only pick games that have NOT started yet. Search current games across all sports. I want your highest confidence plays with real data behind them. Start with ' + startSport + ' but go wherever the value is.'}]})});
-    var data = await r.json();
-    var text = data.content ? data.content.map(function(c){return c.text||'';}).join('') : '';
+  
+  // Try cached picks endpoint first
+  try {
+    var cachedRes = await fetch('/api/picks');
+    var cachedData = await cachedRes.json();
     var loading2 = document.getElementById('picksLoading');
-    if(loading2) loading2.remove();
-    var picks = text.split('---').filter(function(p){return p.trim().length > 20;});
-    if(picks.length === 0){container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:16px;white-space:pre-wrap">'+text+'</div>';return;}
-    container.innerHTML = picks.map(function(p){
-      var game='',pick='',conf='70%',rec='ANALYZE';
-      p.split('|').forEach(function(part){
-        var t=part.trim();
-        if(t.indexOf('GAME:')>-1)game=t.replace('GAME:','').trim();
-        if(t.indexOf('PICK:')>-1)pick=t.replace('PICK:','').trim();
-        if(t.indexOf('CONFIDENCE:')>-1)conf=t.replace('CONFIDENCE:','').trim();
-        if(t.indexOf('RECOMMENDATION:')>-1)rec=t.replace('RECOMMENDATION:','').trim();
-      });
-      var isBet=rec.toUpperCase().indexOf('BET')>-1;
-      return '<div class="pick-card"><div class="pc-pick-tag">S.I.D.E. AI PICK · '+conf+'</div><div class="pc-pick-game">'+game+'</div><div class="pc-pick-pick">'+pick+'</div><div class="pc-pick-body">'+p.trim()+'</div><button class="pc-pick-rec" style="background:'+(isBet?'var(--green)':'var(--red)')+';color:var(--bg)">'+rec+'</button></div>';
-    }).join('');
+    
+    if(cachedData.generating) {
+      // Picks are being generated, show message and retry in 30 seconds
+      if(loading2) loading2.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">GENERATING PICKS...</div><div class="ew-sub">S.I.D.E. AI is analyzing today's slate. Check back in 30 seconds.</div><button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">REFRESH PICKS</button>';
+      return;
+    }
+    
+    if(cachedData.picks) {
+      if(loading2) loading2.remove();
+      var text = cachedData.picks;
+      var picks = text.split('---').filter(function(p){return p.trim().length > 20;});
+      if(picks.length === 0){container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:16px;white-space:pre-wrap">'+text+'</div>';return;}
+      container.innerHTML = picks.map(function(p){
+        var game='',pick='',conf='70%',rec='ANALYZE';
+        p.split('|').forEach(function(part){
+          var t=part.trim();
+          if(t.indexOf('GAME:')>-1)game=t.replace('GAME:','').trim();
+          if(t.indexOf('PICK:')>-1)pick=t.replace('PICK:','').trim();
+          if(t.indexOf('CONFIDENCE:')>-1)conf=t.replace('CONFIDENCE:','').trim();
+          if(t.indexOf('RECOMMENDATION:')>-1)rec=t.replace('RECOMMENDATION:','').trim();
+        });
+        var isBet=rec.toUpperCase().indexOf('BET')>-1;
+        return '<div class="pick-card"><div class="pc-pick-tag">S.I.D.E. AI PICK · '+conf+'</div><div class="pc-pick-game">'+game+'</div><div class="pc-pick-pick">'+pick+'</div><div class="pc-pick-body">'+p.trim()+'</div><button class="pc-pick-rec" style="background:'+(isBet?'var(--green)':'var(--red)')+';color:var(--bg)">'+rec+'</button></div>';
+      }).join('') + '<div style="text-align:center;margin-top:12px"><button onclick="loadPicks()" style="font-family:Share Tech Mono,monospace;font-size:10px;background:none;border:1px solid var(--b2);color:var(--muted);padding:8px 20px;cursor:pointer">REFRESH</button></div>';
+      return;
+    }
+  } catch(cacheErr) {
+    console.log('Cache fetch failed, falling back to direct generation');
+  }
+  try{
+    var loading2 = document.getElementById('picksLoading');
+    if(loading2) loading2.innerHTML = '<div class="ew-icon">⚠️</div><div class="ew-title">PICKS UNAVAILABLE</div><div class="ew-sub">Try refreshing in a moment.</div><button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">RETRY</button>';
   }catch(e){
-    container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--red);text-align:center;padding:40px">Error: '+e.message+'</div>';
+    console.log('Picks error:', e.message);
   }
 }
 
