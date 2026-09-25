@@ -1211,6 +1211,9 @@ async function submitLogin(){
   errEl.style.display = 'none';
 
   if(!email || !password){ errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
+  // Validate email format
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRegex.test(email)){ errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
 
   btn.textContent = 'LOGGING IN...'; btn.disabled = true;
   try{
@@ -1245,6 +1248,9 @@ async function submitSignup(){
   errEl.style.display = 'none';
 
   if(!email){ errEl.textContent = 'Please enter your email address.'; errEl.style.display = 'block'; return; }
+  // Validate email format
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRegex.test(email)){ errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
   if(password.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
   if(password !== password2){ errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
 
