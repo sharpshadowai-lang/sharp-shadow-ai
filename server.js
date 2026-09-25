@@ -900,14 +900,18 @@ app.post('/api/auth/verify', async function(req, res) {
 app.post('/api/customer-portal', async function(req, res) {
   try {
     var token = req.body.token || '';
+    if(!token) return res.status(400).json({ error: 'Not logged in. Please log in and try again.' });
     var decoded = require('jsonwebtoken').verify(token, JWT_SECRET);
-    var result = await supabase.from('users').select('stripe_customer_id').eq('id', decoded.id).single();
+    console.log('PORTAL REQUEST: user id=' + decoded.id + ' email=' + decoded.email);
+    var result = await supabase.from('users').select('stripe_customer_id, email').eq('id', decoded.id).single();
+    console.log('PORTAL USER DATA: ' + JSON.stringify(result.data));
     if(!result.data || !result.data.stripe_customer_id) {
+      console.log('PORTAL: No stripe_customer_id found for user ' + decoded.id);
       return res.status(400).json({ error: 'No subscription found. Please contact support@sharpshadowai.com' });
     }
     var session = await stripe.billingPortal.sessions.create({
       customer: result.data.stripe_customer_id,
-      return_url: process.env.APP_URL || 'https://sharp-shadow-ai-production.up.railway.app'
+      return_url: process.env.APP_URL || 'https://sharpshadowai.com'
     });
     res.json({ url: session.url });
   } catch(err) {
