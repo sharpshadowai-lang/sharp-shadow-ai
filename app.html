@@ -1359,8 +1359,8 @@ CRITICAL RULES:
       return;
     }
 
-    // Split on --- separators
-    var sections = text.split('---').filter(function(p){ return p.trim().length > 30; });
+    // Split on --- separators (handle variations like ---, ***, or multiple dashes)
+    var sections = text.split(/\n-{3,}\n|\n\*{3,}\n/).filter(function(p){ return p.trim().length > 30; });
     if(sections.length === 0){
       container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:16px;white-space:pre-wrap">' + text + '</div>';
       return;
@@ -1370,11 +1370,13 @@ CRITICAL RULES:
       var lines = section.trim().split('\n');
       var fields = {};
       lines.forEach(function(line){
-        var idx = line.indexOf(':');
+        // Strip markdown bold (**text**) and leading symbols from field names
+        var clean = line.replace(/\*\*/g,'').replace(/^#+\s*/,'').trim();
+        var idx = clean.indexOf(':');
         if(idx > -1){
-          var key = line.substring(0, idx).trim().toUpperCase();
-          var val = line.substring(idx+1).trim();
-          fields[key] = val;
+          var key = clean.substring(0, idx).trim().toUpperCase();
+          var val = clean.substring(idx+1).trim();
+          if(key && val) fields[key] = val;
         }
       });
 
@@ -1384,6 +1386,11 @@ CRITICAL RULES:
           '<div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--cyan);margin-bottom:10px">📋 BEST PICKS TODAY</div>' +
           '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#c8dde8;line-height:1.9;white-space:pre-wrap">' + section.replace(/BEST PICKS TODAY/i,'').trim() + '</div>' +
           '</div>';
+      }
+
+      // If we couldn't parse a GAME or BET field, render as plain text instead of a broken card
+      if(!fields['GAME'] && !fields['BET']){
+        return '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:12px;line-height:1.8;white-space:pre-wrap;border-left:2px solid rgba(0,245,255,.2);margin-bottom:10px">' + section.trim() + '</div>';
       }
 
       var game = fields['GAME'] || '';
