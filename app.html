@@ -274,11 +274,9 @@ body{overflow-y:auto}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 
 @media(max-width:1100px){
-  .dashboard{grid-template-columns:1fr;grid-template-rows:auto}
+  .dashboard{grid-template-columns:1fr}
   .odds-panel,.signals-panel{display:none}
-  .odds-panel.mobile-active,.signals-panel.mobile-active{display:flex}
   .edge-panel{border-right:none}
-  .mobile-tabs{display:flex !important}
 }
 @media(max-width:768px){
   .hero-stats{gap:24px;flex-wrap:wrap}
@@ -295,9 +293,6 @@ body{overflow-y:auto}
   .features-4{grid-template-columns:repeat(2,1fr)}
   .how-it-works{grid-template-columns:repeat(2,1fr)}
 }
-.mobile-tabs{display:none;gap:1px;background:var(--b1);border-bottom:1px solid var(--b1);flex-shrink:0}
-.mobile-tab{flex:1;padding:10px 4px;background:var(--bg);border:none;font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);cursor:pointer;letter-spacing:.5px;text-align:center}
-.mobile-tab.active{background:var(--s1);color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -329,38 +324,11 @@ body{overflow-y:auto}
         <div class="modal-title">SIGN <span>IN</span></div>
         <div class="modal-sub" style="margin-bottom:20px">Welcome back. Enter your email and password to access your account.</div>
         <input id="loginEmail" type="email" placeholder="Email address" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
-        <input id="loginPassword" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:4px;outline:none">
-        <div style="text-align:right;margin-bottom:12px">
-          <a href="#" onclick="showForgotPassword();return false;" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none">Forgot password?</a>
-        </div>
+        <input id="loginPassword" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLogin()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
         <button class="modal-btn" onclick="submitLogin()" style="width:100%">LOG IN</button>
         <div id="loginError" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--red);text-align:center;margin-top:10px;display:none"></div>
         <div class="modal-note" style="margin-top:16px">// NO ACCOUNT YET? //</div>
         <button onclick="closeLoginModal();openModal()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--b2);color:var(--cyan);font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer">START FREE TRIAL</button>
-      </div>
-
-      <!-- Forgot Password View -->
-      <div id="authForgotView" style="display:none">
-        <div class="modal-eyebrow">// RESET PASSWORD //</div>
-        <div class="modal-title">FORGOT <span>PASSWORD</span></div>
-        <div class="modal-sub" style="margin-bottom:20px">Enter your email and we'll send you a reset link.</div>
-        <input id="forgotEmail" type="email" placeholder="Email address" onkeydown="if(event.key==='Enter')submitForgotPassword()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
-        <button class="modal-btn" onclick="submitForgotPassword()" style="width:100%">SEND RESET LINK</button>
-        <div id="forgotMsg" style="font-family:Share Tech Mono,monospace;font-size:10px;text-align:center;margin-top:10px;display:none"></div>
-        <div class="modal-note" style="margin-top:16px">
-          <a href="#" onclick="showLoginView();return false;" style="color:var(--cyan)">← Back to login</a>
-        </div>
-      </div>
-
-      <!-- Reset Password View (shown when customer clicks email link) -->
-      <div id="authResetView" style="display:none">
-        <div class="modal-eyebrow">// NEW PASSWORD //</div>
-        <div class="modal-title">RESET <span>PASSWORD</span></div>
-        <div class="modal-sub" style="margin-bottom:20px">Enter your new password below.</div>
-        <input id="resetPassword" type="password" placeholder="New password (min 6 characters)" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;outline:none">
-        <input id="resetPassword2" type="password" placeholder="Confirm new password" onkeydown="if(event.key==='Enter')submitResetPassword()" style="width:100%;padding:12px 14px;background:var(--s1);border:1px solid var(--b2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;outline:none">
-        <button class="modal-btn" onclick="submitResetPassword()" style="width:100%">SET NEW PASSWORD</button>
-        <div id="resetMsg" style="font-family:Share Tech Mono,monospace;font-size:10px;text-align:center;margin-top:10px;display:none"></div>
       </div>
 
       <!-- Signup View (shown after payment) -->
@@ -381,90 +349,14 @@ body{overflow-y:auto}
   <div class="hero">
     <div class="hero-tag">// PROFESSIONAL SHARP MONEY INTELLIGENCE //</div>
     <h1 class="hero-h1">SHARP<br><span>SHADOW</span> AI</h1>
-    <p class="hero-sub">Stop betting blind. See exactly where sharp money is moving, in real time, across 10+ sportsbooks — then ask S.I.D.E. AI, your built-in research assistant, what to do about it. Hedge funds pay $50,000/year for this kind of data and the hours of homework behind it. Try full access <strong style="color:var(--cyan)">FREE for 2 days</strong>, then just <strong style="color:var(--cyan)">$79.99/month</strong> — or save big with an annual plan for as low as <strong style="color:var(--cyan)">$58.25/month</strong>. Cancel anytime, no contracts.</p>
-
-    <!-- BOLD BULLET POINTS -->
-    <div style="max-width:700px;width:100%;margin:0 auto 40px;text-align:left">
-
-      <!-- What you get -->
-      <div style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#00f5ff;margin-bottom:16px;text-align:center">// EVERYTHING INSIDE SHARP SHADOW AI //</div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:32px">
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span style="color:#00f5ff;font-size:16px;flex-shrink:0">▸</span>
-          <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#00f5ff;letter-spacing:1px">LIVE SHARP SIGNALS</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">Steam moves & sharp money across 10+ books</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span style="color:#00ff88;font-size:16px;flex-shrink:0">▸</span>
-          <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#00ff88;letter-spacing:1px">S.I.D.E. AI ANALYST</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">Ask anything — searches live web to answer</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span style="color:#b347ff;font-size:16px;flex-shrink:0">▸</span>
-          <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#b347ff;letter-spacing:1px">DAILY AI PICKS</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">Top plays with confidence ratings every morning</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span style="color:#f0b429;font-size:16px;flex-shrink:0">▸</span>
-          <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#f0b429;letter-spacing:1px">BEST LINE FINDER</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">FanDuel, DraftKings, BetMGM, Caesars & more</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span style="color:#00f5ff;font-size:16px;flex-shrink:0">▸</span>
-          <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#00f5ff;letter-spacing:1px">PARLAY BUILDER + AI RISK</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">S.I.D.E. AI grades your parlay — BET or FADE</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span style="color:#00ff88;font-size:16px;flex-shrink:0">▸</span>
-          <div>
-            <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:800;color:#00ff88;letter-spacing:1px">5 SPORTS COVERED</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a7a8a;margin-top:2px">NFL · MLB · NBA · NCAA Football · NCAA Basketball</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Why better than competitors -->
-      <div style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#00f5ff;margin-bottom:16px;text-align:center">// WHY WE'RE BETTER THAN THE REST //</div>
-
-      <div style="background:#060d14;border:1px solid rgba(0,245,255,.15);padding:20px 24px;display:flex;flex-direction:column;gap:12px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="color:#ff4466;font-size:14px;flex-shrink:0">✕</span>
-          <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#4a7a8a"><strong style="color:#ff4466">Other apps charge $99/mo</strong> — No AI analyst. No sharp signals. Just raw data you still have to figure out yourself.</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="color:#ff4466;font-size:14px;flex-shrink:0">✕</span>
-          <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#4a7a8a"><strong style="color:#ff4466">AI pick services charge $49-299/mo</strong> — Shows you picks but can't answer questions, explain signals, or analyze your parlay.</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="color:#ff4466;font-size:14px;flex-shrink:0">✕</span>
-          <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#4a7a8a"><strong style="color:#ff4466">Line tracking tools charge $60/mo</strong> — No AI at all. Odds data only. You still do all the work.</div>
-        </div>
-        <div style="border-top:1px solid rgba(0,245,255,.15);padding-top:12px;display:flex;align-items:center;gap:10px">
-          <span style="color:#00ff88;font-size:14px;flex-shrink:0">✓</span>
-          <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#c8e8d0"><strong style="color:#00ff88">Sharp Shadow AI $79.99/mo</strong> — Everything above PLUS S.I.D.E. AI you can actually talk to, live sharp signals, parlay AI risk analysis, and a free 2-day trial. Nobody else offers all of this.</div>
-        </div>
-      </div>
-
-    </div>
-
+    <p class="hero-sub">Stop betting blind. See exactly where sharp money is moving, in real time, across 10+ sportsbooks — then ask S.I.D.E. AI, your built-in research assistant, what to do about it. Hedge funds pay $50,000/year for this kind of data and the hours of homework behind it. Try full access <strong style="color:var(--cyan)">FREE for 2 days</strong>, then just <strong style="color:var(--cyan)">$39.99/month</strong> — or save big with an annual plan for as low as <strong style="color:var(--cyan)">$29.17/month</strong>. Cancel anytime, no contracts.</p>
     <div class="hero-btns">
       <button class="hero-btn-main" onclick="selectPlan('trial');openModal()">START FREE TRIAL</button>
-      <button class="hero-btn-ghost" onclick="selectPlan('annual');openModal()">GO ANNUAL — $699/YR</button>
+      <button class="hero-btn-ghost" onclick="selectPlan('annual');openModal()">GO ANNUAL — $349.99/YR</button>
     </div>
     <div class="trust-bar">
       <div class="trust-item">✓ FREE 2-day trial</div>
-      <div class="trust-item">✓ Then $79.99/month</div>
+      <div class="trust-item">✓ Then $39.99/month</div>
       <div class="trust-item">✓ Cancel anytime, no contracts</div>
       <div class="trust-item">✓ Cancel before day 3, pay nothing</div>
     </div>
@@ -562,7 +454,7 @@ body{overflow-y:auto}
 
   <div class="pricing-section" id="pricing-section">
     <div class="pricing-title">PICK YOUR <span>PLAN</span></div>
-    <div class="pricing-sub">// FREE 2-DAY TRIAL · THEN $79.99/MONTH · CANCEL ANYTIME //</div>
+    <div class="pricing-sub">// FREE 2-DAY TRIAL · THEN $39.99/MONTH · CANCEL ANYTIME //</div>
 
     <p style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);max-width:640px;margin:16px auto 32px;line-height:1.8">
       Both plans include the exact same thing: real time sharp signals, S.I.D.E. AI doing your research around the clock,
@@ -582,21 +474,21 @@ body{overflow-y:auto}
           </div>
           <div class="pc-combo-arrow">→</div>
           <div class="pc-combo-item">
-            <div class="pc-price" style="font-size:48px">$79<span class="pc-price-cents">.99</span></div>
+            <div class="pc-price" style="font-size:48px">$39<span class="pc-price-cents">.99</span></div>
             <div class="pc-period">per month after</div>
           </div>
         </div>
-        <div class="pc-period" style="margin-top:-4px;margin-bottom:16px">about $2.63/day on the monthly plan</div>
+        <div class="pc-period" style="margin-top:-4px;margin-bottom:16px">about $1.32/day on the monthly plan</div>
         <div class="pc-feats">
           <div class="pc-feat">Full access FREE for 2 days</div>
-          <div class="pc-feat">Then $79.99/month, cancel anytime</div>
+          <div class="pc-feat">Then $39.99/month, cancel anytime</div>
           <div class="pc-feat">Real time steam move &amp; sharp signals</div>
           <div class="pc-feat">S.I.D.E. AI — your AI sports betting analyst</div>
           <div class="pc-feat">Daily AI picks with confidence ratings</div>
           <div class="pc-feat">Best line finder across 10+ sportsbooks</div>
           <div class="pc-feat">Parlay builder with AI risk analysis</div>
-          <div class="pc-feat">NFL · MLB · NBA · NCAA Football · NCAA Basketball</div>
-          <div class="pc-feat" style="color:var(--muted)">24hr refund on your first $79.99 charge</div>
+          <div class="pc-feat">NFL · NBA · MLB · NHL · MLS · EPL · UCL · Tennis</div>
+          <div class="pc-feat" style="color:var(--green)">24hr refund on your first $39.99 charge</div>
         </div>
         <button class="pc-btn" onclick="selectPlan('trial');openModal()">START FREE TRIAL</button>
         <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted2);margin-top:12px;letter-spacing:.5px">// NO CHARGE DURING 2-DAY TRIAL · CANCEL ANYTIME AFTER //</div>
@@ -607,10 +499,10 @@ body{overflow-y:auto}
         <div class="pc-tag">// ANNUAL //</div>
         <div class="pc-name">ELITE</div>
         <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;margin-bottom:4px">
-          <div class="pc-price">$699<span class="pc-price-cents"></span></div>
+          <div class="pc-price">$349<span class="pc-price-cents">.99</span></div>
           <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted)">per year</div>
         </div>
-        <div class="pc-period">just $58.25/mo — 2.5 months free</div>
+        <div class="pc-period">just $29.17/mo — 2.5 months free</div>
         <div class="pc-feats">
           <div class="pc-feat">Everything Sharp Shadow AI offers, for a full year</div>
           <div class="pc-feat">Real time steam move &amp; sharp signals</div>
@@ -620,13 +512,13 @@ body{overflow-y:auto}
           <div class="pc-feat">Parlay builder with AI risk analysis</div>
           <div class="pc-feat" style="color:var(--green)">Lock in your price for 12 months</div>
         </div>
-        <button class="pc-btn" onclick="selectPlan('annual');openModal()">GO ANNUAL — $699/YR</button>
+        <button class="pc-btn" onclick="selectPlan('annual');openModal()">GO ANNUAL — $349.99/YR</button>
         <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted2);margin-top:12px;letter-spacing:.5px">// ANNUAL PLAN IS NON-REFUNDABLE //</div>
       </div>
 
     </div>
 
-    <div class="pricing-compare">Competitors charge $60-99/mo with no AI and no signals &nbsp;|&nbsp; <strong>Sharp Shadow AI $79.99/mo — S.I.D.E. AI + live signals + free trial included</strong></div>
+    <div class="pricing-compare">OddsJam $99/mo · BetQL $60/mo · ActionNetwork $60/mo &nbsp;|&nbsp; <strong>Sharp Shadow AI $39.99/mo with FREE trial and S.I.D.E. AI built in</strong></div>
   </div>
 
   <div class="disclaimer-box">
@@ -646,7 +538,7 @@ body{overflow-y:auto}
   <div class="land-footer">
     Sharp Shadow AI is for entertainment and informational purposes only. Not financial advice. Must be 21+ and in a jurisdiction where sports betting is legal.<br>
     Gambling Problem? Call 1-800-522-4700 · <a href="#" onclick="document.getElementById('termsModal').style.display='block';return false;" style="color:var(--muted)">Terms</a> · <a href="#" onclick="document.getElementById('privacyModal').style.display='block';return false;" style="color:var(--muted)">Privacy</a><br>
-    Questions? <a href="#" onclick="document.getElementById('faqModal').style.display='block';return false;" style="color:var(--cyan)">View FAQ</a> · Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a>
+    Questions or support? Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a>
   </div>
 </div>
 
@@ -664,16 +556,10 @@ body{overflow-y:auto}
       <div class="app-dot"></div>
       <span id="appStatusText">CONNECTING...</span>
     </div>
-    <a href="#" onclick="document.getElementById('faqModal').style.display='block';return false;" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">FAQ</a><a href="mailto:support@sharpshadowai.com" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">SUPPORT</a>
+    <a href="mailto:support@sharpshadowai.com" style="background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;text-decoration:none">SUPPORT</a>
     <button onclick="manageSubscription()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">MANAGE SUB</button>
     <button onclick="signOut()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">SIGN OUT</button>
   </nav>
-
-  <div class="mobile-tabs" id="mobileTabs">
-    <button class="mobile-tab" id="mTab-signals" onclick="switchMobileTab('signals')">⚡ SIGNALS</button>
-    <button class="mobile-tab active" id="mTab-ai" onclick="switchMobileTab('ai')">🤖 S.I.D.E. AI</button>
-    <button class="mobile-tab" id="mTab-odds" onclick="switchMobileTab('odds')">📊 ODDS</button>
-  </div>
 
   <div class="dashboard">
 
@@ -728,7 +614,6 @@ body{overflow-y:auto}
     <div class="edge-panel">
       <div class="panel-header">
         <div class="ph-title">🤖 S.I.D.E. AI</div>
-        <div id="aiCallCounter" class="ph-count" style="font-size:9px;cursor:default">30 AI calls left today</div>
         <div id="picksDate" class="ph-count" style="display:none"></div>
       </div>
       <div class="edge-picks-bar">
@@ -804,10 +689,14 @@ body{overflow-y:auto}
       <div class="odds-filters" style="flex-wrap:wrap">
         <button class="of-btn active" onclick="filterOdds(this,'ALL')">ALL</button>
         <button class="of-btn" onclick="filterOdds(this,'NFL')">NFL</button>
-        <button class="of-btn" onclick="filterOdds(this,'MLB')">MLB</button>
         <button class="of-btn" onclick="filterOdds(this,'NBA')">NBA</button>
-        <button class="of-btn" onclick="filterOdds(this,'NCAAF')">NCAAF</button>
-        <button class="of-btn" onclick="filterOdds(this,'NCAAB')">NCAAB</button>
+        <button class="of-btn" onclick="filterOdds(this,'MLB')">MLB</button>
+        <button class="of-btn" onclick="filterOdds(this,'NHL')">NHL</button>
+        <button class="of-btn" onclick="filterOdds(this,'EPL')">EPL</button>
+        <button class="of-btn" onclick="filterOdds(this,'UCL')">UCL</button>
+        <button class="of-btn" onclick="filterOdds(this,'WORLDCUP')">WORLD CUP</button>
+        <button class="of-btn" onclick="filterOdds(this,'MLS')">MLS</button>
+        <button class="of-btn" onclick="filterOdds(this,'TENNIS')">TENNIS</button>
       </div>
       <div class="odds-list" id="oddsList">
         <div class="empty-signals">
@@ -826,13 +715,13 @@ body{overflow-y:auto}
     <button class="modal-close" onclick="closeModal()">✕</button>
     <div class="modal-eyebrow" id="modalEyebrow">// START HERE //</div>
     <div class="modal-title">GO FULL <span>SHARP</span></div>
-    <div class="modal-sub" id="modalSub">Try everything free for 2 days. After that you'll be billed $79.99/month — cancel anytime, no contracts. The free trial is non-refundable, but if you're charged $79.99, you have 24 hours to request a full refund.</div>
+    <div class="modal-sub" id="modalSub">Try everything free for 2 days. After that you'll be billed $39.99/month — cancel anytime, no contracts. The free trial is non-refundable, but if you're charged $39.99, you have 24 hours to request a full refund.</div>
     <div class="modal-plan-row" style="grid-template-columns:1fr">
       <div class="mpl active" style="cursor:default">
-        <div class="mpl-badge" id="modalBadge">FREE TRIAL → $79.99/MO</div>
+        <div class="mpl-badge" id="modalBadge">FREE TRIAL → $39.99/MO</div>
         <div class="mpl-name">SHARP SHADOW AI</div>
         <div class="mpl-price" id="modalPrice">FREE</div>
-        <div class="mpl-per" id="modalPer">free for 2 days, then $79.99/month</div>
+        <div class="mpl-per" id="modalPer">free for 2 days, then $39.99/month</div>
       </div>
     </div>
     <div class="modal-feats">
@@ -843,7 +732,7 @@ body{overflow-y:auto}
       <div class="modal-feat">Cancel anytime — no contracts</div>
     </div>
     <button class="modal-btn" id="modalBtn" onclick="subscribe()">START FREE TRIAL</button>
-    <div class="modal-note" id="modalNote">// NO CHARGE DURING TRIAL · CANCEL ANYTIME //</div>
+    <div class="modal-note" id="modalNote">// NO CHARGE DURING TRIAL · 24HR REFUND ON THE $39.99 CHARGE //</div>
   </div>
 </div>
 
@@ -857,8 +746,8 @@ body{overflow-y:auto}
       <p><strong style="color:var(--text)">1. ACCEPTANCE OF TERMS</strong><br>By accessing or using Sharp Shadow AI, you agree to be bound by these Terms of Service. If you do not agree, do not use the service.</p>
       <p><strong style="color:var(--text)">2. ENTERTAINMENT PURPOSES ONLY</strong><br>Sharp Shadow AI is provided for entertainment and informational purposes only. Nothing on this platform constitutes financial advice, gambling advice, or a guarantee of any outcome. All signals, picks, and AI-generated content are opinions only.</p>
       <p><strong style="color:var(--text)">3. ELIGIBILITY</strong><br>You must be at least 21 years of age (or the legal age in your jurisdiction) and located in a jurisdiction where sports betting is legal to use this service.</p>
-      <p><strong style="color:var(--text)">4. SUBSCRIPTION AND BILLING</strong><br>Sharp Shadow AI offers a free 2-day trial followed by a $79.99/month or $699/year subscription. Your card will be charged automatically after the trial period. You may cancel at any time and will retain access until the end of your current billing period. The $699 annual plan is non-refundable.</p>
-      <p><strong style="color:var(--text)">5. REFUND POLICY</strong><br>Monthly subscribers may request a refund within 24 hours of their first $79.99 charge by emailing support@sharpshadowai.com. No refunds are available for the annual plan or after the 24-hour window.</p>
+      <p><strong style="color:var(--text)">4. SUBSCRIPTION AND BILLING</strong><br>Sharp Shadow AI offers a free 2-day trial followed by a $39.99/month or $349.99/year subscription. Your card will be charged automatically after the trial period. You may cancel at any time and will retain access until the end of your current billing period. The $349.99 annual plan is non-refundable.</p>
+      <p><strong style="color:var(--text)">5. REFUND POLICY</strong><br>Monthly subscribers may request a refund within 24 hours of their first $39.99 charge by emailing support@sharpshadowai.com. No refunds are available for the annual plan or after the 24-hour window.</p>
       <p><strong style="color:var(--text)">6. CANCELLATION</strong><br>You may cancel your subscription at any time. Access continues until the end of your current billing period. To cancel, use the Manage Subscription option in the app or contact support@sharpshadowai.com.</p>
       <p><strong style="color:var(--text)">7. LIMITATION OF LIABILITY</strong><br>Sharp Shadow AI is not responsible for any financial losses incurred through sports betting. Use of this platform is at your own risk. We make no guarantees about the accuracy, completeness, or profitability of any information provided.</p>
       <p><strong style="color:var(--text)">8. CONTACT</strong><br>For questions, contact support@sharpshadowai.com</p>
@@ -884,73 +773,6 @@ body{overflow-y:auto}
   </div>
 </div>
 
-<!-- FAQ MODAL -->
-<div id="faqModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;overflow-y:auto;padding:40px 20px">
-  <div style="max-width:700px;margin:0 auto;background:var(--s1);border:1px solid var(--b2);padding:40px;position:relative">
-    <button onclick="document.getElementById('faqModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
-    <div style="font-family:Orbitron,sans-serif;font-size:18px;font-weight:900;color:var(--cyan);margin-bottom:8px">FREQUENTLY ASKED QUESTIONS</div>
-    <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:28px;letter-spacing:1px">// QUICK ANSWERS TO COMMON QUESTIONS //</div>
-
-    <div style="display:flex;flex-direction:column;gap:20px">
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO I LOG BACK IN?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Go to sharpshadowai.com, click LOG IN in the top right, and enter your email and password you used when you signed up.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO I CANCEL MY SUBSCRIPTION?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Log in, click MANAGE SUB in the top navigation bar, then click Cancel subscription. You keep full access until your billing period ends. No further charges after that.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">WILL I BE CHARGED DURING THE FREE TRIAL?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">No. Your card is saved but not charged until day 3. If you cancel before day 3, you pay nothing at all.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">CAN I GET A REFUND?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Monthly subscribers can request a full refund within 24 hours of their first $79.99 charge by emailing support@sharpshadowai.com. Annual plans are non-refundable.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--green);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">WHAT IS S.I.D.E. AI?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">S.I.D.E. AI stands for Sports Intelligence Data Engine. It's your personal AI sports betting analyst — ask it anything about any game, team, line, or matchup and it searches live web data before answering. Available 24/7, never stale data.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--green);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">WHY IS S.I.D.E. AI SLOW SOMETIMES?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">S.I.D.E. AI searches the live web before answering, which takes 5-15 seconds. This is normal — it's pulling real current data, not guessing from old information.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">WHAT SPORTS DOES SHARP SHADOW AI COVER?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">NFL, MLB, NBA, NCAA Football (NCAAF), and NCAA Basketball (NCAAB). We focus on the sports Americans actually bet on most.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO LIVE SIGNALS WORK?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Our system monitors line movement across 10+ sportsbooks every 10 minutes. When a line moves fast or against public betting, that's sharp money — we flag it instantly showing exactly which side to bet and how strong the signal is.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--red);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">DOES SHARP SHADOW AI GUARANTEE WINS?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">No. Sharp Shadow AI provides data, analysis, and AI-generated opinions for informational and entertainment purposes only. Nothing on this platform guarantees a winning outcome. Sports betting involves risk — never bet more than you can afford to lose. Must be 21+ in a legal jurisdiction.</div>
-      </div>
-
-      <div style="border-left:3px solid var(--cyan);padding-left:16px">
-        <div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">HOW DO I CONTACT SUPPORT?</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);line-height:1.8">Email us at <a href="mailto:support@sharpshadowai.com" style="color:var(--cyan)">support@sharpshadowai.com</a> — we respond within 24 hours, 7 days a week.</div>
-      </div>
-
-    </div>
-
-    <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--b1);text-align:center">
-      <button onclick="document.getElementById('faqModal').style.display='none'" style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;background:var(--cyan);color:var(--bg);border:none;padding:12px 32px;cursor:pointer;letter-spacing:2px">CLOSE</button>
-    </div>
-  </div>
-</div>
-
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -963,26 +785,12 @@ var currentPlan = 'trial';
 var edgeHistory = [];
 var parlayLegs = [];
 
-var resetTokenStored = null;
-
 // ===== CHECKOUT REDIRECT HANDLING =====
 (function(){
   var params = new URLSearchParams(window.location.search);
   var checkout = params.get('checkout');
   var plan = params.get('plan');
-
-  var reset = params.get('reset');
-  if(reset){
-    resetTokenStored = reset;
-    window.history.replaceState({}, '', '/');
-    window.addEventListener('DOMContentLoaded', function(){
-      document.getElementById('loginModal').style.display = 'flex';
-      document.getElementById('authLoginView').style.display = 'none';
-      document.getElementById('authForgotView').style.display = 'none';
-      document.getElementById('authSignupView').style.display = 'none';
-      document.getElementById('authResetView').style.display = 'block';
-    });
-  } else if(checkout === 'success'){
+  if(checkout === 'success'){
     // Clean up URL
     window.history.replaceState({}, '', '/');
     window.addEventListener('DOMContentLoaded', function(){
@@ -1021,52 +829,6 @@ var resetTokenStored = null;
 })();
 
 // ===== NAVIGATION =====
-function switchMobileTab(tab){
-  // Hide all panels
-  document.querySelector('.signals-panel').classList.remove('mobile-active');
-  document.querySelector('.edge-panel').style.display = 'none';
-  document.querySelector('.odds-panel').classList.remove('mobile-active');
-
-  // Remove active from all tabs
-  document.querySelectorAll('.mobile-tab').forEach(function(t){ t.classList.remove('active'); });
-
-  // Show selected panel
-  if(tab === 'signals'){
-    document.querySelector('.signals-panel').classList.add('mobile-active');
-    document.getElementById('mTab-signals').classList.add('active');
-  } else if(tab === 'ai'){
-    document.querySelector('.edge-panel').style.display = 'flex';
-    document.getElementById('mTab-ai').classList.add('active');
-  } else if(tab === 'odds'){
-    document.querySelector('.odds-panel').classList.add('mobile-active');
-    document.getElementById('mTab-odds').classList.add('active');
-  }
-}
-
-// Check subscription status every 5 minutes while logged in
-async function checkSubscriptionStatus(){
-  var token = localStorage.getItem('ss_token');
-  if(!token) return;
-  try {
-    var r = await fetch('/api/auth/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token})});
-    var data = await r.json();
-    if(!data.valid){
-      // Subscription cancelled or expired — force logout
-      localStorage.removeItem('ss_token');
-      localStorage.removeItem('ss_email');
-      localStorage.removeItem('ss_plan');
-      localStorage.removeItem('ss_access');
-      goHome();
-      showToast('Your subscription has ended. Please resubscribe to continue.');
-    }
-  } catch(e) { 
-    // If server unreachable, don't log out
-  }
-}
-
-// Start periodic check when app loads
-setInterval(checkSubscriptionStatus, 5 * 60 * 1000); // every 5 minutes
-
 function openApp(){
   document.getElementById('landing').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -1095,95 +857,14 @@ function signOut(){
   localStorage.removeItem('ss_access');
   localStorage.removeItem('ss_plan');
   localStorage.removeItem('ss_since');
-  localStorage.removeItem('ss_token');
-  localStorage.removeItem('ss_email');
-  localStorage.removeItem('ss_ai_calls');
   goHome();
   showToast('Signed out successfully.');
-}
-
-function showForgotPassword(){
-  document.getElementById('authLoginView').style.display = 'none';
-  document.getElementById('authForgotView').style.display = 'block';
-  document.getElementById('authSignupView').style.display = 'none';
-  document.getElementById('authResetView').style.display = 'none';
-  document.getElementById('forgotMsg').style.display = 'none';
-  document.getElementById('forgotEmail').value = '';
-  setTimeout(function(){ document.getElementById('forgotEmail').focus(); }, 100);
-}
-
-function showLoginView(){
-  document.getElementById('authLoginView').style.display = 'block';
-  document.getElementById('authForgotView').style.display = 'none';
-  document.getElementById('authSignupView').style.display = 'none';
-  document.getElementById('authResetView').style.display = 'none';
-  document.getElementById('loginError').style.display = 'none';
-}
-
-async function submitForgotPassword(){
-  var btn = document.querySelector('#authForgotView .modal-btn');
-  var email = document.getElementById('forgotEmail').value.trim();
-  var msgEl = document.getElementById('forgotMsg');
-  msgEl.style.display = 'none';
-
-  if(!email){ msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Please enter your email.'; msgEl.style.display = 'block'; return; }
-
-  btn.textContent = 'SENDING...'; btn.disabled = true;
-  try{
-    var r = await fetch('/api/auth/forgot-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email})});
-    var data = await r.json();
-    msgEl.style.color = 'var(--green)';
-    msgEl.textContent = 'Reset link sent! Check your email inbox.';
-    msgEl.style.display = 'block';
-  } catch(e){
-    msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Connection error. Please try again.';
-    msgEl.style.display = 'block';
-  }
-  btn.textContent = 'SEND RESET LINK'; btn.disabled = false;
-}
-
-async function submitResetPassword(){
-  var btn = document.querySelector('#authResetView .modal-btn');
-  var password = document.getElementById('resetPassword').value;
-  var password2 = document.getElementById('resetPassword2').value;
-  var token = resetTokenStored || new URLSearchParams(window.location.search).get('reset');
-  var msgEl = document.getElementById('resetMsg');
-  msgEl.style.display = 'none';
-
-  if(!token){ msgEl.style.color='var(--red)'; msgEl.textContent='Reset link expired. Please request a new one.'; msgEl.style.display='block'; return; }
-  if(password.length < 6){ msgEl.style.color='var(--red)'; msgEl.textContent='Password must be at least 6 characters.'; msgEl.style.display='block'; return; }
-  if(password !== password2){ msgEl.style.color='var(--red)'; msgEl.textContent='Passwords do not match.'; msgEl.style.display='block'; return; }
-
-  btn.textContent = 'SAVING...'; btn.disabled = true;
-  try{
-    var r = await fetch('/api/auth/reset-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:token, password:password})});
-    var data = await r.json();
-    if(data.success){
-      msgEl.style.color = 'var(--green)';
-      msgEl.textContent = 'Password updated! You can now log in.';
-      msgEl.style.display = 'block';
-      window.history.replaceState({}, '', '/');
-      setTimeout(function(){ showLoginView(); }, 2000);
-    } else {
-      msgEl.style.color = 'var(--red)';
-      msgEl.textContent = data.error || 'Reset failed. Please try again.';
-      msgEl.style.display = 'block';
-    }
-  } catch(e){
-    msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Connection error. Please try again.';
-    msgEl.style.display = 'block';
-  }
-  btn.textContent = 'SET NEW PASSWORD'; btn.disabled = false;
 }
 
 function openLoginModal(){
   document.getElementById('loginModal').style.display = 'flex';
   document.getElementById('authLoginView').style.display = 'block';
-  document.getElementById('authForgotView').style.display = 'none';
   document.getElementById('authSignupView').style.display = 'none';
-  document.getElementById('authResetView').style.display = 'none';
   document.getElementById('loginError').style.display = 'none';
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
@@ -1211,9 +892,6 @@ async function submitLogin(){
   errEl.style.display = 'none';
 
   if(!email || !password){ errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
-  // Validate email format
-  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!emailRegex.test(email)){ errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
 
   btn.textContent = 'LOGGING IN...'; btn.disabled = true;
   try{
@@ -1248,9 +926,6 @@ async function submitSignup(){
   errEl.style.display = 'none';
 
   if(!email){ errEl.textContent = 'Please enter your email address.'; errEl.style.display = 'block'; return; }
-  // Validate email format
-  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!emailRegex.test(email)){ errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return; }
   if(password.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
   if(password !== password2){ errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
 
@@ -1297,19 +972,19 @@ function selectPlan(plan){
 
   if(plan === 'trial'){
     eyebrow.textContent = '// START HERE //';
-    badge.textContent = 'FREE TRIAL → $79.99/MO';
+    badge.textContent = 'FREE TRIAL → $39.99/MO';
     price.textContent = 'FREE';
-    per.textContent = 'free for 2 days, then $79.99/month';
-    sub.textContent = 'Try everything free for 2 days. After that you will be billed $79.99/month — cancel anytime, no contracts. The free trial is non-refundable, but if you are charged $79.99, you have 24 hours to request a full refund.';
+    per.textContent = 'free for 2 days, then $39.99/month';
+    sub.textContent = 'Try everything free for 2 days. After that you will be billed $39.99/month — cancel anytime, no contracts. The free trial is non-refundable, but if you are charged $39.99, you have 24 hours to request a full refund.';
     btn.textContent = 'START FREE TRIAL';
-    note.textContent = '// NO CHARGE DURING TRIAL · 24HR REFUND ON THE $79.99 CHARGE //';
+    note.textContent = '// NO CHARGE DURING TRIAL · 24HR REFUND ON THE $39.99 CHARGE //';
   } else if(plan === 'annual'){
     eyebrow.textContent = '// ANNUAL ELITE //';
-    badge.textContent = 'SAVE $261/YEAR';
-    price.textContent = '$699';
-    per.textContent = 'per year, just $58.25/mo';
+    badge.textContent = 'SAVE $250/YEAR';
+    price.textContent = '$349.99';
+    per.textContent = 'per year, just $29.17/mo';
     sub.textContent = 'Lock in the best price for a full year — 2.5 months free compared to monthly. Your price is locked for 12 months.';
-    btn.textContent = 'GO ANNUAL — $699/YR';
+    btn.textContent = 'GO ANNUAL — $349.99/YR';
     note.textContent = '// SECURE PAYMENT · ANNUAL PLAN IS NON-REFUNDABLE //';
   }
 }
@@ -1359,10 +1034,6 @@ async function loadApp(){
   setInterval(fetchSignals, 60000);
   // Auto load picks in background
   setTimeout(function(){ loadPicks(); }, 500);
-  // Initialize AI call counter
-  updateAiCallDisplay();
-  // Check subscription immediately when app opens
-  checkSubscriptionStatus();
   // Animate hero stats
   animCount('hs1', 34, '', 1200);
 }
@@ -1490,30 +1161,6 @@ function askEdge(msg){
   sendEdge();
 }
 
-// Track daily AI call count in localStorage
-function getAiCallCount(){
-  var today = new Date().toDateString();
-  var data = JSON.parse(localStorage.getItem('ss_ai_calls') || '{"date":"","count":0}');
-  if(data.date !== today) return 0;
-  return data.count;
-}
-function incrementAiCallCount(){
-  var today = new Date().toDateString();
-  var count = getAiCallCount() + 1;
-  localStorage.setItem('ss_ai_calls', JSON.stringify({date:today, count:count}));
-  updateAiCallDisplay();
-}
-function updateAiCallDisplay(serverRemaining){
-  var plan = localStorage.getItem('ss_plan') || 'trial';
-  var limit = plan === 'trial' ? 5 : 10;
-  var remaining = serverRemaining !== undefined ? serverRemaining : limit;
-  var el = document.getElementById('aiCallCounter');
-  if(el){
-    el.textContent = remaining + ' AI calls left today';
-    el.style.color = remaining <= 1 ? 'var(--red)' : remaining <= 3 ? 'var(--yellow)' : 'var(--muted)';
-  }
-}
-
 function sendEdge(){
   var input = document.getElementById('edgeInput');
   var msg = input ? input.value.trim() : '';
@@ -1526,38 +1173,23 @@ function sendEdge(){
   addMsg(msg, 'user');
   var typing = addTyping();
   edgeHistory.push({role:'user',content:msg});
-  var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.type+', moved '+s.mov+')';}).join(', ');
-  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the most powerful sports betting analyst. Today is ' + new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) + ' and the current time is ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}) + '. You have live web search. ONLY recommend bets on games that have NOT yet started. Search for upcoming games scheduled for today and tonight. If a game has already started or ended, skip it. Give sharp confident predictions with real stats. Current signals: ' + sigCtx;
+  var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.sharpLabel+', moved '+s.mov+', '+s.bookCount+' books)';}).join('; ');
+  var todayForChat = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a rigorous sports betting market analyst. Today is ' + todayForChat + '. You have live web search. Use it to get current lines, injuries, and news before answering.\n\nYour job is to provide honest, evidence-based analysis — not to hype picks. When you identify a betting edge, explain your reasoning clearly: estimated win probability, implied probability from the line, estimated edge, and why the bet has value. When there is no edge, say so.\n\nNever say "lock," "guaranteed," or "can\'t lose." Use probability ranges and acknowledge uncertainty. The user wants to make better betting decisions, not be told what they want to hear.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet — lines appear stable');
+  var chatToken = localStorage.getItem('ss_token') || '';
   fetch('/api/edge', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      model:'claude-haiku-4-5-20251001',
-      max_tokens:1000,
-      system:sys,
-      messages:edgeHistory,
-      token: localStorage.getItem('ss_token') || '',
-      callType: 'chat'
-    })
+    body: JSON.stringify({token:chatToken,model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:edgeHistory})
   }).then(function(r){return r.json();}).then(function(data){
     var reply = data.content ? data.content.map(function(c){return c.text||'';}).join('') : 'No response';
-    // Check if rate limited
-    if(data.error === 'Daily limit reached' || (reply && reply.includes('daily S.I.D.E. AI limit'))){
-      if(typing) typing.remove();
-      addMsg('⚠️ You have reached your daily S.I.D.E. AI limit. Your limit resets at midnight. Come back tomorrow for fresh analysis! In the meantime, check your Daily Picks and Live Signals panels.', 'bot');
-      updateAiCallDisplay(0);
-      if(btn){btn.disabled = false; btn.textContent = 'SEND';}
-      return;
-    }
-    incrementAiCallCount();
-    if(data.remaining !== undefined) updateAiCallDisplay(data.remaining);
     edgeHistory.push({role:'assistant',content:reply});
     if(typing) typing.remove();
     addMsg(reply, 'bot');
     if(btn){btn.disabled = false; btn.textContent = 'SEND';}
   }).catch(function(e){
     if(typing) typing.remove();
-    addMsg('Connection error. Please try again in a moment.', 'bot');
+    addMsg('Connection error. Make sure server is running.', 'bot');
     if(btn){btn.disabled = false; btn.textContent = 'SEND';}
   });
 }
@@ -1595,51 +1227,227 @@ async function loadPicks(){
   var todayLabel = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   var timeLabel = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   if(dateEl){ dateEl.textContent = '📅 ' + todayLabel + ' · ' + timeLabel; dateEl.style.display = 'block'; }
+  container.innerHTML = '';
   var loading = document.createElement('div');
   loading.id = 'picksLoading';
   loading.className = 'edge-welcome';
-  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">LOADING TODAYS PICKS...</div><div class="ew-sub">Fetching S.I.D.E. AI analysis</div>';
+  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">ANALYZING TODAY\'S SLATE...</div><div class="ew-sub">Scanning markets across all sports for genuine edge. This is not guessing — this is evidence-based analysis.</div>';
   container.appendChild(loading);
-  
-  // Try cached picks endpoint first
-  try {
-    var cachedRes = await fetch('/api/picks');
-    var cachedData = await cachedRes.json();
-    var loading2 = document.getElementById('picksLoading');
-    
-    if(cachedData.generating) {
-      // Picks are being generated, show message and retry in 30 seconds
-      if(loading2) loading2.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">GENERATING PICKS...</div><div class="ew-sub">S.I.D.E. AI is analyzing todays slate. Check back in 30 seconds.</div><button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">REFRESH PICKS</button>';
-      return;
-    }
-    
-    if(cachedData.picks) {
-      if(loading2) loading2.remove();
-      var text = cachedData.picks;
-      var picks = text.split('---').filter(function(p){return p.trim().length > 20;});
-      if(picks.length === 0){container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:16px;white-space:pre-wrap">'+text+'</div>';return;}
-      container.innerHTML = picks.map(function(p){
-        var game='',pick='',conf='70%',rec='ANALYZE';
-        p.split('|').forEach(function(part){
-          var t=part.trim();
-          if(t.indexOf('GAME:')>-1)game=t.replace('GAME:','').trim();
-          if(t.indexOf('PICK:')>-1)pick=t.replace('PICK:','').trim();
-          if(t.indexOf('CONFIDENCE:')>-1)conf=t.replace('CONFIDENCE:','').trim();
-          if(t.indexOf('RECOMMENDATION:')>-1)rec=t.replace('RECOMMENDATION:','').trim();
-        });
-        var isBet=rec.toUpperCase().indexOf('BET')>-1;
-        return '<div class="pick-card"><div class="pc-pick-tag">S.I.D.E. AI PICK · '+conf+'</div><div class="pc-pick-game">'+game+'</div><div class="pc-pick-pick">'+pick+'</div><div class="pc-pick-body">'+p.trim()+'</div><button class="pc-pick-rec" style="background:'+(isBet?'var(--green)':'var(--red)')+';color:var(--bg)">'+rec+'</button></div>';
-      }).join('') + '<div style="text-align:center;margin-top:12px"><button onclick="loadPicks()" style="font-family:Share Tech Mono,monospace;font-size:10px;background:none;border:1px solid var(--b2);color:var(--muted);padding:8px 20px;cursor:pointer">REFRESH</button></div>';
-      return;
-    }
-  } catch(cacheErr) {
-    console.log('Cache fetch failed, falling back to direct generation');
-  }
+
   try{
+    var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    var token = localStorage.getItem('ss_token') || '';
+
+    var PICKS_SYSTEM = `You are S.I.D.E. AI (Sports Intelligence Data Engine) — a rigorous sports betting market analyst. Today is ${today}. You have access to live web search.
+
+YOUR PRIMARY OBJECTIVE: Identify bets with the highest estimated probability of winning AND determine whether the current sportsbook price provides sufficient value. These are two separate questions. Answer both for every candidate.
+
+STEP 1 — SCAN THE MARKET
+Search for today's games across NFL, NBA, MLB, NCAA football, NCAA basketball, and any other active sports. Use web search to find: current lines, opening lines, injury reports, starting pitchers/quarterbacks/goalies, and any relevant news.
+
+STEP 2 — ESTIMATE TRUE PROBABILITY
+For each candidate bet, estimate the probability that the wager wins. Consider:
+- Current line and opening line
+- Line movement (direction, size, speed, number of books moved)
+- Whether the line crossed a key number (3, 7, 10, 14 in football)
+- Ticket % vs money % — low tickets but high money = possible sharp interest
+- Reverse line movement (line moves opposite to ticket majority)
+- Whether market-making or sharp-accepting books moved first
+- Multi-book synchronized movement (steam)
+- Injuries and lineup news
+- Recent performance, home/away splits, matchup history
+- Rest, travel, schedule spots
+- Weather when relevant
+- Advanced statistics
+
+STEP 3 — SEPARATE "LIKELY TO WIN" FROM "GOOD BET"
+A -250 favorite may win more often but offer no value. Always calculate:
+- Estimated win probability
+- Sportsbook implied probability (convert the current line)
+- Estimated edge (your probability minus implied probability)
+- Expected value when calculable
+
+Only recommend when the estimated edge is meaningful.
+
+STEP 4 — SHARP MONEY CLASSIFICATION
+Use ONLY these labels. Be honest about what the data shows:
+- NO SHARP EVIDENCE: Normal movement, single-book move, or insufficient data
+- POSSIBLE SHARP ACTION: Some indicators exist but picture is incomplete
+- STRONG SHARP EVIDENCE: Meaningful move + multi-book confirmation + supporting factors (RLM, key number, sharp book moved first)
+
+NEVER call a minor move "strong sharp evidence." NEVER assume high money% = sharp money.
+
+STEP 5 — LINE VALUE
+If a line has already moved substantially and eliminated the value, say so and downgrade or skip the bet. Analyze the CURRENT number the bettor can actually get, not the opening number.
+
+PICK TIERS:
+- TIER 1 — HIGHEST CONFIDENCE: Strong probability edge + meaningful market value + strong supporting evidence
+- TIER 2 — STRONG: Good probability or value, but more uncertainty
+- TIER 3 — LEAN: Interesting signal, but insufficient edge for a primary recommendation (note but do not officially recommend)
+
+If only 1 bet qualifies today, give 1. If nothing qualifies, output: NO QUALIFYING BET TODAY.
+Never force picks to fill a quota.
+
+OUTPUT FORMAT — for each official pick use exactly this structure, separated by ---:
+
+TIER: [1 / 2 / 3]
+SPORT: [sport]
+GAME: [Away Team vs Home Team]
+BET: [exact wager — team, spread/total/ML, number]
+CURRENT LINE: [current number and juice]
+BEST AVAILABLE PRICE: [best number/juice across books if different]
+OPENING LINE: [opening number]
+LINE MOVEMENT: [opened X, now Y — direction and size]
+KEY NUMBER CROSSED: [yes/no — which number if yes]
+TICKET %: [if available, otherwise: Data not available]
+MONEY %: [if available, otherwise: Data not available]
+RLM: [yes/no — describe if yes]
+SHARP ACTION: [NO SHARP EVIDENCE / POSSIBLE SHARP ACTION / STRONG SHARP EVIDENCE]
+ESTIMATED WIN PROBABILITY: [X%]
+IMPLIED PROBABILITY: [X% — converted from current line]
+ESTIMATED EDGE: [+X% or -X%]
+KEY REASONS: [3-5 specific, concrete reasons — no vague statements]
+MAIN RISK: [the single most important reason this bet could lose]
+CONFIDENCE: [X% — based on evidence quality, NOT just win probability]
+VALUE STATUS: [GOOD VALUE / FAIR VALUE / OVERPRICED / NO VALUE]
+RECOMMENDATION: [BET / LEAN / PASS]
+
+---
+
+After all picks, add a BEST PICKS TODAY section ranking the official recommendations.
+
+CRITICAL RULES:
+- Never say "lock", "guaranteed", "free money", or "can't lose"
+- Never manufacture certainty
+- If data is unavailable, say so — do not invent numbers
+- A strong pick can still lose — report evidence and confidence, not promises`;
+
+    var r = await fetch('/api/edge', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        token: token,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 3000,
+        system: PICKS_SYSTEM,
+        messages: [{
+          role: 'user',
+          content: 'Today is ' + today + '. Search for today\'s games and find the best bets. Use web search to get current lines, injury reports, and line movement data. Analyze the full market — NFL, NBA, MLB, college football, college basketball, and any other sport with games today. Apply all criteria from your instructions. Give me your honest assessment. If nothing qualifies, say so.'
+        }]
+      })
+    });
+
+    var data = await r.json();
+    if(data.error && r.status === 429){
+      container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--yellow);text-align:center;padding:40px;line-height:1.8">' + (data.content ? data.content[0].text : 'Daily AI limit reached. Resets at midnight.') + '</div>';
+      return;
+    }
+    var text = data.content ? data.content.map(function(c){return c.text||'';}).join('') : '';
     var loading2 = document.getElementById('picksLoading');
-    if(loading2) loading2.innerHTML = '<div class="ew-icon">⚠️</div><div class="ew-title">PICKS UNAVAILABLE</div><div class="ew-sub">Try refreshing in a moment.</div><button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">RETRY</button>';
+    if(loading2) loading2.remove();
+
+    if(!text || text.length < 30){
+      container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted);text-align:center;padding:40px">No response received. Please try again.</div>';
+      return;
+    }
+
+    // Check for "no qualifying bet" response
+    if(text.toUpperCase().indexOf('NO QUALIFYING BET') > -1 && text.split('---').length <= 2){
+      container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:12px;color:var(--yellow);padding:24px;line-height:1.9;white-space:pre-wrap">' + text + '</div>';
+      return;
+    }
+
+    // Split on --- separators
+    var sections = text.split('---').filter(function(p){ return p.trim().length > 30; });
+    if(sections.length === 0){
+      container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#9ec8d8;padding:16px;white-space:pre-wrap">' + text + '</div>';
+      return;
+    }
+
+    container.innerHTML = sections.map(function(section){
+      var lines = section.trim().split('\n');
+      var fields = {};
+      lines.forEach(function(line){
+        var idx = line.indexOf(':');
+        if(idx > -1){
+          var key = line.substring(0, idx).trim().toUpperCase();
+          var val = line.substring(idx+1).trim();
+          fields[key] = val;
+        }
+      });
+
+      // If this section is the "BEST PICKS TODAY" summary, render it differently
+      if(section.toUpperCase().indexOf('BEST PICKS TODAY') > -1 && !fields['GAME']){
+        return '<div style="margin-top:16px;padding:16px;border:1px solid rgba(0,245,255,.2);background:rgba(0,245,255,.04)">' +
+          '<div style="font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--cyan);margin-bottom:10px">📋 BEST PICKS TODAY</div>' +
+          '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#c8dde8;line-height:1.9;white-space:pre-wrap">' + section.replace(/BEST PICKS TODAY/i,'').trim() + '</div>' +
+          '</div>';
+      }
+
+      var game = fields['GAME'] || '';
+      var bet = fields['BET'] || '';
+      var tier = fields['TIER'] || '';
+      var sport = fields['SPORT'] || '';
+      var conf = fields['CONFIDENCE'] || '';
+      var rec = fields['RECOMMENDATION'] || 'ANALYZE';
+      var sharp = fields['SHARP ACTION'] || '';
+      var edge = fields['ESTIMATED EDGE'] || '';
+      var valueStatus = fields['VALUE STATUS'] || '';
+      var rlm = fields['RLM'] || '';
+      var movement = fields['LINE MOVEMENT'] || '';
+      var keyNum = fields['KEY NUMBER CROSSED'] || '';
+      var estProb = fields['ESTIMATED WIN PROBABILITY'] || '';
+      var impliedProb = fields['IMPLIED PROBABILITY'] || '';
+      var mainRisk = fields['MAIN RISK'] || '';
+      var keyReasons = fields['KEY REASONS'] || '';
+
+      var isBet = rec.toUpperCase().indexOf('BET') > -1;
+      var isLean = rec.toUpperCase() === 'LEAN';
+      var recColor = isBet ? 'var(--green)' : isLean ? 'var(--yellow)' : 'var(--red)';
+
+      var sharpColor = sharp.indexOf('STRONG') > -1 ? 'var(--cyan)' :
+                       sharp.indexOf('POSSIBLE') > -1 ? 'var(--yellow)' : 'var(--muted)';
+
+      var tierColor = tier === '1' ? 'var(--cyan)' : tier === '2' ? 'var(--green)' : 'var(--muted)';
+      var tierLabel = tier === '1' ? 'TIER 1 — HIGHEST CONFIDENCE' : tier === '2' ? 'TIER 2 — STRONG' : tier === '3' ? 'TIER 3 — LEAN' : '';
+
+      return '<div class="pick-card" style="margin-bottom:10px">' +
+        // Header row
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            (tierLabel ? '<span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:' + tierColor + ';border:1px solid ' + tierColor + ';padding:2px 8px">' + tierLabel + '</span>' : '') +
+            '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">' + sport + '</span>' +
+          '</div>' +
+          (conf ? '<span style="font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;color:var(--cyan)">' + conf + ' CONF</span>' : '') +
+        '</div>' +
+        // Game + bet
+        '<div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">' + game + '</div>' +
+        '<div style="font-family:Orbitron,sans-serif;font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:10px">' + bet + '</div>' +
+        // Stats grid
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">' +
+          (movement ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">📈 MOVE: <span style="color:var(--text)">' + movement + '</span></div>' : '') +
+          (keyNum && keyNum.toLowerCase() !== 'no' ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--yellow)">🔑 KEY #: <span style="color:var(--text)">' + keyNum + '</span></div>' : '') +
+          (estProb ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">WIN PROB: <span style="color:var(--green)">' + estProb + '</span></div>' : '') +
+          (impliedProb ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">IMPLIED: <span style="color:var(--text)">' + impliedProb + '</span></div>' : '') +
+          (edge ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">EDGE: <span style="color:' + (edge.indexOf('+') > -1 ? 'var(--green)' : 'var(--red)') + '">' + edge + '</span></div>' : '') +
+          (valueStatus ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">VALUE: <span style="color:' + (valueStatus.indexOf('GOOD') > -1 ? 'var(--green)' : valueStatus.indexOf('OVER') > -1 ? 'var(--red)' : 'var(--yellow)') + '">' + valueStatus + '</span></div>' : '') +
+        '</div>' +
+        // Sharp + RLM
+        '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+          (sharp ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:' + sharpColor + ';border:1px solid ' + sharpColor + ';padding:2px 8px">' + sharp + '</span>' : '') +
+          (rlm && rlm.toLowerCase() !== 'no' ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--purple);border:1px solid var(--purple);padding:2px 8px">RLM: ' + rlm + '</span>' : '') +
+        '</div>' +
+        // Key reasons
+        (keyReasons ? '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#9ec8d8;line-height:1.7;margin-bottom:8px;padding:8px;background:rgba(0,0,0,.3);border-left:2px solid var(--cyan)"><strong style="color:var(--cyan)">KEY REASONS:</strong> ' + keyReasons + '</div>' : '') +
+        // Main risk
+        (mainRisk ? '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:10px"><strong style="color:var(--yellow)">⚠ RISK:</strong> ' + mainRisk + '</div>' : '') +
+        // Recommendation button
+        '<button class="pc-pick-rec" style="background:' + recColor + ';color:var(--bg);width:100%;padding:10px;font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;border:none;cursor:default">' + rec + '</button>' +
+        '</div>';
+    }).join('');
+
   }catch(e){
-    console.log('Picks error:', e.message);
+    container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--red);text-align:center;padding:40px">Error: '+e.message+'</div>';
   }
 }
 
@@ -1697,7 +1505,7 @@ async function analyzeParlay(){
   if(analysis){analysis.style.display='block';analysis.textContent='S.I.D.E. AI is analyzing your parlay...';}
   var legs=parlayLegs.map(function(s){return s.game+' - '+s.bet;}).join(', ');
   try{
-    var r=await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:localStorage.getItem('ss_token')||'',callType:'chat',model:'claude-haiku-4-5-20251001',max_tokens:600,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp betting analyst.',messages:[{role:'user',content:'Analyze this parlay: '+legs+'. Give each leg assessment, correlation risks, and an overall BET or FADE recommendation.'}]})});
+    var r=await fetch('/api/edge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,system:'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp betting analyst.',messages:[{role:'user',content:'Analyze this parlay: '+legs+'. Give each leg assessment, correlation risks, and an overall BET or FADE recommendation.'}]})});
     var data=await r.json();
     var reply=data.content?data.content.map(function(c){return c.text||'';}).join(''):'No response received.';
     if(analysis){analysis.textContent=reply;}
