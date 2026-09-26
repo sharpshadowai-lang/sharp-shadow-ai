@@ -273,10 +273,20 @@ body{overflow-y:auto}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 
+/* Mobile tab bar */
+.mob-tabs{display:none;background:var(--s1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.mob-tab{flex:1;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;padding:12px 4px;cursor:pointer;transition:.2s}
+.mob-tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+
 @media(max-width:1100px){
   .dashboard{grid-template-columns:1fr}
-  .odds-panel,.signals-panel{display:none}
+  .odds-panel{display:none}
+  .signals-panel{display:none}
   .edge-panel{border-right:none}
+  .mob-tabs{display:flex}
+  /* panels shown via JS class */
+  .dashboard .signals-panel.mob-active{display:flex}
+  .dashboard .edge-panel.mob-active{display:flex}
 }
 @media(max-width:768px){
   .hero-stats{gap:24px;flex-wrap:wrap}
@@ -561,10 +571,16 @@ body{overflow-y:auto}
     <button onclick="signOut()" style="background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px">SIGN OUT</button>
   </nav>
 
+  <!-- MOBILE TAB BAR -->
+  <div class="mob-tabs" id="mobTabs">
+    <button class="mob-tab active" id="mobTabSignals" onclick="mobSwitch('signals')">⚡ SIGNALS</button>
+    <button class="mob-tab" id="mobTabAI" onclick="mobSwitch('ai')">🤖 S.I.D.E. AI</button>
+  </div>
+
   <div class="dashboard">
 
     <!-- LEFT: SIGNALS -->
-    <div class="signals-panel">
+    <div class="signals-panel mob-active" id="mobileSignalsPanel">
       <div class="panel-header">
         <div class="ph-title">⚡ LIVE SIGNALS</div>
         <div class="ph-count" id="sigCount">0 ACTIVE</div>
@@ -611,7 +627,7 @@ body{overflow-y:auto}
     </div>
 
     <!-- CENTER: S.I.D.E. AI -->
-    <div class="edge-panel">
+    <div class="edge-panel" id="mobileAIPanel">
       <div class="panel-header">
         <div class="ph-title">🤖 S.I.D.E. AI</div>
         <div id="picksDate" class="ph-count" style="display:none"></div>
@@ -779,6 +795,21 @@ body{overflow-y:auto}
 <script>
 var signals = [];
 var allGames = [];
+
+function mobSwitch(tab){
+  var sp = document.getElementById('mobileSignalsPanel');
+  var ap = document.getElementById('mobileAIPanel');
+  var ts = document.getElementById('mobTabSignals');
+  var ta = document.getElementById('mobTabAI');
+  if(!sp||!ap) return;
+  if(tab === 'signals'){
+    sp.classList.add('mob-active'); ap.classList.remove('mob-active');
+    ts.classList.add('active'); ta.classList.remove('active');
+  } else {
+    ap.classList.add('mob-active'); sp.classList.remove('mob-active');
+    ta.classList.add('active'); ts.classList.remove('active');
+  }
+}
 var currentSigFilter = 'all';
 var currentOddsFilter = 'ALL';
 var currentPlan = 'trial';
@@ -1240,40 +1271,40 @@ async function loadPicks(){
     var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
     var token = localStorage.getItem('ss_token') || '';
 
-    var PICKS_SYSTEM = `You are S.I.D.E. AI. Today is ${today}.
+    var PICKS_SYSTEM = `You are S.I.D.E. AI. Today is ${today}. Your job is to output betting pick cards — nothing else.
 
-TASK: Use web search to find today's best betting opportunities. Search for current lines, line movement, injuries, and news across NFL, MLB, NCAA football, and any sport with games today.
+STEP 1: Search the web for games happening TODAY (${today}) across NCAA football, MLB, MLS, and any other sport with games today. Search specifically for "college football odds ${today}" and "MLB odds ${today}".
 
-RULES:
-- Only recommend bets where your estimated win probability EXCEEDS the implied probability by at least 3%
-- Do not write paragraphs or analysis prose — output ONLY the structured pick blocks below
-- If nothing qualifies, output exactly: NO QUALIFYING BET TODAY followed by a one-sentence reason
-- Give 1 to 5 picks maximum. Quality over quantity.
+STEP 2: For the 3 best opportunities you find, output a pick card in EXACTLY this format. Start your response with the first pick card immediately — no intro text, no preamble.
 
-FOR EACH PICK, output EXACTLY this block with no extra text before or between fields. Separate picks with a line containing only ---
-
-TIER: [1, 2, or 3]
-SPORT: [NFL / MLB / NCAAF / NBA / etc]
-GAME: [Away vs Home]
-BET: [Team/Side + Spread or ML or Total — exact number]
-CURRENT LINE: [number and juice e.g. -3.5 -110]
-OPENING LINE: [opening number]
-LINE MOVEMENT: [e.g. opened -2, now -3.5]
-KEY NUMBER CROSSED: [Yes — crossed 3 / No]
-RLM: [Yes — line moved against ticket majority / No]
+TIER: [1 / 2 / 3]
+SPORT: [sport name]
+GAME: [Away Team vs Home Team]
+BET: [exact bet — side, spread/ML/total, number]
+CURRENT LINE: [current line and juice]
+OPENING LINE: [opening line]
+LINE MOVEMENT: [e.g. Opened -3, now -5]
+KEY NUMBER CROSSED: [Yes - crossed 3 / No]
+RLM: [Yes / No]
 SHARP ACTION: [NO SHARP EVIDENCE / POSSIBLE SHARP ACTION / STRONG SHARP EVIDENCE]
-ESTIMATED WIN PROBABILITY: [e.g. 57%]
-IMPLIED PROBABILITY: [e.g. 52%]
-ESTIMATED EDGE: [e.g. +5%]
-KEY REASONS: [3 specific reasons separated by semicolons]
-MAIN RISK: [single biggest reason this loses]
-CONFIDENCE: [e.g. 68%]
+ESTIMATED WIN PROBABILITY: [X%]
+IMPLIED PROBABILITY: [X%]
+ESTIMATED EDGE: [+X% or -X%]
+KEY REASONS: [reason 1; reason 2; reason 3]
+MAIN RISK: [biggest risk]
+CONFIDENCE: [X%]
 VALUE STATUS: [GOOD VALUE / FAIR VALUE / OVERPRICED]
 RECOMMENDATION: [BET / LEAN / PASS]
 
 ---
 
-Do not write any prose, headers, or explanation outside the pick blocks. Output pick blocks only.`;
+[next pick card here]
+
+RULES:
+- Output 2-4 pick cards. Always give at least 2 picks — use LEAN or PASS recommendation if confidence is lower.
+- NEVER write paragraphs, analysis, or explanatory text. Pick cards only.
+- If a field's data is unavailable, write "Data not available" — never skip the field.
+- Separate each pick card with a line containing only: ---`;
 
     var r = await fetch('/api/edge', {
       method: 'POST',
@@ -1285,7 +1316,7 @@ Do not write any prose, headers, or explanation outside the pick blocks. Output 
         system: PICKS_SYSTEM,
         messages: [{
           role: 'user',
-          content: 'Today is ' + today + '. Search for today\'s betting lines and injury reports. Output ONLY structured pick blocks in the exact format specified. No prose, no headers, no commentary — just the pick blocks separated by ---. If nothing qualifies, output NO QUALIFYING BET TODAY and one sentence why.'
+          content: 'Search for games and betting lines for today, ' + today + '. Output 2-4 pick cards in the exact format from your instructions. Begin your response with "TIER:" — do not write any other text before the first pick card.'
         }]
       })
     });
