@@ -16,17 +16,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sharpshadow_jwt_secret_2025';
 const app = express();
 app.use(cors());
 
-// ===== STRIPE WEBHOOK — must be before express.json() =====
+// ===== STRIPE WEBHOOK — must be BEFORE express.json() =====
 app.post('/webhook/stripe', express.raw({type: 'application/json'}), async function(req, res) {
   var sig = req.headers['stripe-signature'];
   var webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   var event;
 
   try {
-    if(webhookSecret && sig) {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } else {
+    if(!webhookSecret) {
       event = JSON.parse(req.body.toString());
+    } else {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     }
   } catch(err) {
     console.log('WEBHOOK ERROR: ' + err.message);
@@ -36,67 +36,71 @@ app.post('/webhook/stripe', express.raw({type: 'application/json'}), async funct
   console.log('WEBHOOK EVENT: ' + event.type);
 
   try {
+    // Checkout completed — link stripe_customer_id to user by email
     if(event.type === 'checkout.session.completed') {
       var session = event.data.object;
       var email = session.customer_details ? session.customer_details.email : null;
       var customerId = session.customer;
       if(email) {
-        // Try to link immediately
-        var updateResult = await supabase.from('users')
-          .update({ stripe_customer_id: customerId, subscription_status: 'active' })
-          .eq('email', email.toLowerCase());
-        console.log('WEBHOOK: New customer linked - ' + email + ' customer: ' + customerId);
-        
-        // Store pending link in case user hasn't created account yet
-        // We'll check this when they create their account
-        await supabase.from('users')
-          .upsert([{ 
-            email: email.toLowerCase(),
+        var lowerEmail = email.toLowerCase().trim();
+        // Try to update existing user first
+        var updateRes = await supabase.from('users')
+          .update({ stripe_customer_id: customerId, subscription_status: 'trialing' })
+          .eq('email', lowerEmail);
+        // If no user exists yet, pre-create a placeholder so manage sub works after signup
+        var checkRes = await supabase.from('users').select('id').eq('email', lowerEmail).single();
+        if(!checkRes.data) {
+          await supabase.from('users').insert([{
+            email: lowerEmail,
             stripe_customer_id: customerId,
-            subscription_status: 'active',
+            subscription_status: 'trialing',
             plan: 'trial'
-          }], { onConflict: 'email', ignoreDuplicates: false });
-        console.log('WEBHOOK: Stripe customer stored - ' + email);
+          }]);
+          console.log('WEBHOOK: Pre-created user for ' + lowerEmail);
+        }
+        console.log('WEBHOOK: Checkout completed - ' + lowerEmail + ' cid=' + customerId);
       }
     }
 
+    // Subscription deleted (hard cancel — trial expired with no payment method, or manual cancel)
     if(event.type === 'customer.subscription.deleted') {
       var sub = event.data.object;
       var customerId = sub.customer;
       var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
-      var wasTrial = sub.status === 'trialing' || (sub.trial_end && sub.trial_end > Date.now()/1000);
-      
-      // For trial cancellations — remove access immediately (no subscription_end grace period)
-      // For paid cancellations — keep access until end of billing period
       await supabase.from('users')
-        .update({ 
-          subscription_status: 'cancelled',
-          subscription_end: wasTrial ? null : periodEnd
-        })
+        .update({ subscription_status: 'cancelled', subscription_end: periodEnd })
         .eq('stripe_customer_id', customerId);
-      console.log('WEBHOOK: Subscription cancelled - ' + (wasTrial ? 'TRIAL (immediate)' : 'PAID (access until ' + periodEnd + ')') + ' - customer ' + customerId);
+      console.log('WEBHOOK: Subscription deleted - customer ' + customerId);
     }
 
+    // Subscription updated (trial→active, cancel_at_period_end, etc.)
     if(event.type === 'customer.subscription.updated') {
       var sub = event.data.object;
       var customerId = sub.customer;
-      var status = sub.status;
+      var stripeStatus = sub.status;
       var periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+
       var dbStatus = 'active';
-      var dbPlan = null;
-      if(status === 'trialing') { dbStatus = 'active'; }
-      else if(status === 'active') {
-        dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
-        dbPlan = 'monthly';
+      if(stripeStatus === 'trialing') dbStatus = 'trialing';
+      else if(stripeStatus === 'active') dbStatus = sub.cancel_at_period_end ? 'cancelling' : 'active';
+      else if(stripeStatus === 'past_due') dbStatus = 'past_due';
+      else if(stripeStatus === 'canceled' || stripeStatus === 'cancelled') dbStatus = 'cancelled';
+
+      // Determine plan from price id
+      var planUpdate = {};
+      var prevStatus = event.data.previous_attributes ? event.data.previous_attributes.status : null;
+      // When trial ends and becomes active, upgrade plan to monthly
+      if(prevStatus === 'trialing' && stripeStatus === 'active') {
+        planUpdate.plan = 'monthly';
       }
-      else if(status === 'past_due') dbStatus = 'past_due';
-      else if(status === 'canceled' || status === 'cancelled') dbStatus = 'cancelled';
-      var updateData = { subscription_status: dbStatus, subscription_end: periodEnd };
-      if(dbPlan) updateData.plan = dbPlan;
-      await supabase.from('users').update(updateData).eq('stripe_customer_id', customerId);
+
+      await supabase.from('users')
+        .update(Object.assign({ subscription_status: dbStatus, subscription_end: periodEnd }, planUpdate))
+        .eq('stripe_customer_id', customerId);
       console.log('WEBHOOK: Subscription updated - ' + customerId + ' status: ' + dbStatus);
     }
 
+    // Payment failed
     if(event.type === 'invoice.payment_failed') {
       var invoice = event.data.object;
       var customerId = invoice.customer;
@@ -122,9 +126,14 @@ let gamesCache = [];
 let lastUpdated = null;
 
 const SPORTS = [
-  'americanfootball_nfl',
-  'baseball_mlb',
   'basketball_nba',
+  'baseball_mlb',
+  'americanfootball_nfl',
+  'icehockey_nhl',
+  'soccer_usa_mls',
+  'soccer_epl',
+  'soccer_uefa_champs_league',
+  'soccer_fifa_world_cup',
   'americanfootball_ncaaf',
   'basketball_ncaab'
 ];
@@ -160,9 +169,14 @@ async function fetchOdds() {
 
 function getSportName(key) {
   var m = {
-    americanfootball_nfl:'NFL',
-    baseball_mlb:'MLB',
     basketball_nba:'NBA',
+    baseball_mlb:'MLB',
+    americanfootball_nfl:'NFL',
+    icehockey_nhl:'NHL',
+    soccer_usa_mls:'MLS',
+    soccer_epl:'EPL',
+    soccer_uefa_champs_league:'UCL',
+    soccer_fifa_world_cup:'WORLDCUP',
     americanfootball_ncaaf:'NCAAF',
     basketball_ncaab:'NCAAB'
   };
@@ -172,11 +186,6 @@ function getSportName(key) {
 function formatPt(pt) {
   if (pt === undefined || pt === null) return 'N/A';
   return pt > 0 ? '+' + pt : '' + pt;
-}
-
-function formatTotal(pt) {
-  if (pt === undefined || pt === null) return 'N/A';
-  return '' + pt;
 }
 
 function formatMov(diff) {
@@ -191,6 +200,192 @@ function formatTime(t) {
   }) + ' ET';
 }
 
+// =====================================================================
+// SHARP MONEY MOVEMENT DETECTION
+//
+// Classifications:
+//   NO SHARP EVIDENCE     — normal movement, isolated book, insufficient data
+//   POSSIBLE SHARP ACTION — some supporting indicators, incomplete picture
+//   STRONG SHARP MOVEMENT — meaningful move + multi-book + supporting factors
+//   CONFIRMED MARKET MOVE — synchronized movement across major books, clear evidence
+//
+// Key rules:
+//   - Line move alone does NOT prove sharp money
+//   - Single-book move = at most POSSIBLE
+//   - Price (juice) change ≠ line change — track points only
+//   - Moving through a key number (3, 7, 10 in football) is more significant
+//   - Multi-book synchronized move within short window = steam
+//   - We never claim sharp move = guaranteed winner
+// =====================================================================
+
+// Key numbers by sport — crossing these is especially significant
+var KEY_NUMBERS = {
+  americanfootball_nfl:  [3, 7, 10, 14, 17],
+  americanfootball_ncaaf:[3, 7, 10, 14, 17],
+  basketball_nba:        [1, 2, 3, 5],
+  basketball_ncaab:      [1, 2, 3, 5],
+  baseball_mlb:          [1],
+  icehockey_nhl:         [1]
+};
+
+function crossesKeyNumber(fromPt, toPt, sportKey) {
+  var keyNums = KEY_NUMBERS[sportKey] || [];
+  var lo = Math.min(Math.abs(fromPt), Math.abs(toPt));
+  var hi = Math.max(Math.abs(fromPt), Math.abs(toPt));
+  for (var i = 0; i < keyNums.length; i++) {
+    var kn = keyNums[i];
+    if (lo < kn && hi >= kn) return kn;
+  }
+  return null;
+}
+
+// Minimum point movement before we consider it a real line move (not juice)
+function minLineMove(sportKey, marketKey) {
+  if (marketKey === 'totals') return 1.0;   // 1pt minimum on totals
+  return 0.5;                               // 0.5pt minimum on spreads
+}
+
+// "Notable" threshold — above this is meaningful, below is minor
+function notableLineMove(sportKey, marketKey) {
+  if (marketKey === 'totals') return 1.5;
+  if (sportKey === 'americanfootball_nfl' || sportKey === 'americanfootball_ncaaf') return 1.0;
+  return 1.0;
+}
+
+// Well-known market-making / sharp-friendly sportsbooks that move first
+var SHARP_BOOKS = ['pinnacle', 'betcris', 'circa', 'bookmaker', 'heritage', 'betonlineag', 'lowvig'];
+var MAJOR_BOOKS = ['draftkings', 'fanduel', 'betmgm', 'caesars', 'pointsbet', 'williamhill_us', 'barstool', 'bet365'];
+
+function isSharpBook(bookKey) {
+  return SHARP_BOOKS.indexOf(bookKey.toLowerCase()) !== -1;
+}
+function isMajorBook(bookKey) {
+  return MAJOR_BOOKS.indexOf(bookKey.toLowerCase()) !== -1;
+}
+
+function classifySharpMove(data) {
+  var movement     = data.maxMovement;
+  var bookCount    = data.booksMoved;
+  var minsMoved    = data.minsMoved;
+  var sharpBookMoved = data.sharpBookMoved;
+  var majorFollowed  = data.majorBooksFollowed;
+  var crossedKey   = data.crossedKeyNumber;
+  var sportKey     = data.sportKey;
+  var marketKey    = data.marketKey;
+
+  var minThresh    = minLineMove(sportKey, marketKey);
+  var notableThresh = notableLineMove(sportKey, marketKey);
+
+  // Must clear minimum to count at all
+  if (movement < minThresh) return { classification: 'NO_SHARP_EVIDENCE', confidence: 0 };
+
+  // Score evidence points — each factor adds to confidence
+  var score = 0;
+  var evidence = [];
+
+  // 1. Line movement size
+  if (movement >= notableThresh) {
+    score += 2;
+    evidence.push('Meaningful line move (' + movement + ' pts)');
+  } else {
+    score += 1;
+    evidence.push('Minor line move (' + movement + ' pts)');
+  }
+
+  // 2. Key number crossing (extra weight in football)
+  if (crossedKey) {
+    score += 3;
+    evidence.push('Moved through key number (' + crossedKey + ')');
+  }
+
+  // 3. Multi-book confirmation
+  if (bookCount >= 4) {
+    score += 4;
+    evidence.push(bookCount + ' books moved in sync — possible steam');
+  } else if (bookCount === 3) {
+    score += 3;
+    evidence.push('3 books confirmed move');
+  } else if (bookCount === 2) {
+    score += 2;
+    evidence.push('2 books moved same direction');
+  } else {
+    // Single book — major red flag for sharp label
+    score += 0;
+    evidence.push('Single book movement only');
+  }
+
+  // 4. Sharp/market-making book moved
+  if (sharpBookMoved) {
+    score += 3;
+    evidence.push('Sharp-book (limit-accepting) moved first');
+  }
+
+  // 5. Major books followed sharp book
+  if (majorFollowed >= 2) {
+    score += 3;
+    evidence.push(majorFollowed + ' major books followed');
+  } else if (majorFollowed === 1) {
+    score += 1;
+    evidence.push('1 major book followed');
+  }
+
+  // 6. Speed of movement (steam indicator)
+  if (minsMoved <= 5 && bookCount >= 3) {
+    score += 3;
+    evidence.push('Rapid synchronized movement (<5 min)');
+  } else if (minsMoved <= 15 && bookCount >= 2) {
+    score += 1;
+    evidence.push('Quick movement (<15 min)');
+  }
+
+  // Classify by total score
+  // Single-book moves cap at POSSIBLE regardless of score
+  var classification, str;
+  if (bookCount <= 1) {
+    if (score >= 4) {
+      classification = 'POSSIBLE_SHARP';
+      str = 3;
+    } else {
+      classification = 'NO_SHARP_EVIDENCE';
+      str = 1;
+    }
+  } else if (score >= 14) {
+    classification = 'CONFIRMED_MARKET_MOVE';
+    str = 6;
+  } else if (score >= 9) {
+    classification = 'STRONG_SHARP_MOVEMENT';
+    str = 5;
+  } else if (score >= 5) {
+    classification = 'POSSIBLE_SHARP';
+    str = 3;
+  } else {
+    classification = 'NO_SHARP_EVIDENCE';
+    str = 1;
+  }
+
+  return { classification: classification, confidence: score, evidence: evidence, str: str };
+}
+
+function getSharpLabel(classification) {
+  var labels = {
+    'CONFIRMED_MARKET_MOVE':  '🔥 CONFIRMED MARKET MOVE',
+    'STRONG_SHARP_MOVEMENT':  '⚡ STRONG SHARP MOVEMENT',
+    'POSSIBLE_SHARP':         '📊 POSSIBLE SHARP ACTION',
+    'NO_SHARP_EVIDENCE':      'NO SHARP EVIDENCE'
+  };
+  return labels[classification] || classification;
+}
+
+function getSharpType(classification) {
+  var types = {
+    'CONFIRMED_MARKET_MOVE': 'steam',
+    'STRONG_SHARP_MOVEMENT': 'sharp',
+    'POSSIBLE_SHARP':        'reverse',
+    'NO_SHARP_EVIDENCE':     'none'
+  };
+  return types[classification] || 'none';
+}
+
 function detectMoves(games) {
   var found = [];
   var now = Date.now();
@@ -200,140 +395,178 @@ function detectMoves(games) {
     var sport = getSportName(game.sportKey);
     if (!game.bookmakers) continue;
 
-    // Find the best single movement per game - ONE signal per game
-    var bestMove = null;
+    // Aggregate movement per market across all books
+    var marketData = {};
 
     for (var bi = 0; bi < game.bookmakers.length; bi++) {
       var book = game.bookmakers[bi];
       if (!book.markets) continue;
+      var bookKey = book.key || '';
+
       for (var mi = 0; mi < book.markets.length; mi++) {
         var market = book.markets[mi];
+        if (market.key !== 'spreads' && market.key !== 'totals') continue;
         if (!market.outcomes) continue;
 
-        // For spreads and totals: only track ONE outcome per market
-        // This prevents showing both sides of the same move
+        // Track primary outcome: away team for spreads, Over for totals
         var primaryOutcome = null;
         if (market.key === 'spreads') {
-          // Track away team spread only
           for (var oi = 0; oi < market.outcomes.length; oi++) {
-            if (market.outcomes[oi].name === game.away_team) {
-              primaryOutcome = market.outcomes[oi];
-              break;
-            }
+            if (market.outcomes[oi].name === game.away_team) { primaryOutcome = market.outcomes[oi]; break; }
           }
           if (!primaryOutcome) primaryOutcome = market.outcomes[0];
-        } else if (market.key === 'totals') {
-          // Track Over only
+        } else {
           for (var oi = 0; oi < market.outcomes.length; oi++) {
-            if (market.outcomes[oi].name === 'Over') {
-              primaryOutcome = market.outcomes[oi];
-              break;
-            }
+            if (market.outcomes[oi].name === 'Over') { primaryOutcome = market.outcomes[oi]; break; }
           }
           if (!primaryOutcome) primaryOutcome = market.outcomes[0];
         }
 
-        if (!primaryOutcome) continue;
+        if (!primaryOutcome || primaryOutcome.point === undefined) continue;
 
-        var key = game.id + '__' + book.key + '__' + market.key + '__primary';
+        var storeKey = game.id + '__' + bookKey + '__' + market.key;
         var curPt = primaryOutcome.point;
 
-        if (previousLines[key] !== undefined) {
-          var prevPt = previousLines[key].point;
-          var prevTime = previousLines[key].time;
+        if (!marketData[market.key]) {
+          marketData[market.key] = {
+            booksMoved: 0,
+            maxMovement: 0,
+            totalDiff: 0,
+            directionVotes: 0,
+            bookList: [],
+            sharpBookMoved: false,
+            majorBooksFollowed: 0,
+            minsMoved: 9999,
+            openPt: null,
+            curPt: null,
+            crossedKeyNumber: null,
+            sportKey: game.sportKey,
+            marketKey: market.key
+          };
+        }
+
+        var md = marketData[market.key];
+        md.curPt = curPt;
+
+        if (previousLines[storeKey] !== undefined) {
+          var prevPt = previousLines[storeKey].point;
+          var prevTime = previousLines[storeKey].time;
           var diff = curPt - prevPt;
           var movement = Math.abs(diff);
           var mins = (now - prevTime) / 60000;
+          var minThresh = minLineMove(game.sportKey, market.key);
 
-          var sigType = null;
-          if (movement >= 1.5 && mins <= 5) sigType = 'steam';
-          else if (movement >= 1.0 && mins <= 15) sigType = 'sharp';
-          else if (movement >= 0.5 && mins <= 30) sigType = 'reverse';
+          if (md.openPt === null) md.openPt = prevPt;
 
-          if (sigType && (!bestMove || movement > bestMove.movement)) {
-            // Sharp money is on the side the line moved TOWARD
-            // Line goes from -3 to -5 = books making it harder to bet favorite = sharp on favorite
-            // Line goes from -3 to -1 = books making it easier = sharp on underdog
-            var sharpTeam, sharpPt;
-            if (market.key === 'spreads') {
-              if (diff < 0) {
-                // Line got more negative = sharp on away team (favorite getting more expensive)
-                sharpTeam = game.away_team;
-                sharpPt = formatPt(curPt);
-              } else {
-                // Line got less negative = sharp on home team
-                sharpTeam = game.home_team;
-                sharpPt = formatPt(-curPt);
-              }
-            } else {
-              // Totals
-              sharpTeam = diff > 0 ? 'OVER' : 'UNDER';
-              sharpPt = formatTotal(curPt);
+          // Only count if it's a real LINE move (not just juice)
+          if (movement >= minThresh) {
+            md.booksMoved++;
+            md.totalDiff += diff;
+            md.maxMovement = Math.max(md.maxMovement, movement);
+            md.directionVotes += diff > 0 ? 1 : -1;
+            md.bookList.push(book.title);
+            md.minsMoved = Math.min(md.minsMoved, mins);
+
+            // Check if a sharp-accepting book moved
+            if (isSharpBook(bookKey)) md.sharpBookMoved = true;
+            // Check if major public book is following
+            else if (isMajorBook(bookKey)) md.majorBooksFollowed++;
+
+            // Check for key number crossing
+            if (!md.crossedKeyNumber) {
+              var kn = crossesKeyNumber(prevPt, curPt, game.sportKey);
+              if (kn) md.crossedKeyNumber = kn;
             }
-
-            bestMove = {
-              movement: movement,
-              type: sigType,
-              book: book,
-              market: market,
-              prevPt: prevPt,
-              curPt: curPt,
-              diff: diff,
-              mins: mins,
-              sharpTeam: sharpTeam,
-              sharpPt: sharpPt
-            };
           }
+        } else {
+          if (md.openPt === null) md.openPt = curPt;
         }
-        previousLines[key] = { point: curPt, time: now };
+
+        previousLines[storeKey] = { point: curPt, time: now };
       }
     }
 
-    // Create ONE signal per game showing ONLY the sharp side
-    if (bestMove) {
-      var m = bestMove;
-      var pct, bfor, mfor, str;
+    // Score each market and pick the best signal for this game
+    var bestSignal = null;
 
-      if (m.type === 'steam') {
-        pct = Math.min(90, Math.round(m.movement * 28));
-        bfor = Math.floor(48 + Math.random() * 22);
-        mfor = Math.floor(68 + Math.random() * 18);
-        str = 5;
-        console.log('STEAM MOVE: ' + game.away_team + ' vs ' + game.home_team + ' | SHARP ON: ' + m.sharpTeam + ' ' + m.sharpPt + ' | ' + m.book.title);
-      } else if (m.type === 'sharp') {
-        pct = Math.min(80, Math.round(m.movement * 22));
-        bfor = Math.floor(36 + Math.random() * 26);
-        mfor = Math.floor(56 + Math.random() * 22);
-        str = 4;
-        console.log('SHARP: ' + game.away_team + ' vs ' + game.home_team + ' | SHARP ON: ' + m.sharpTeam + ' ' + m.sharpPt);
+    var marketKeys = Object.keys(marketData);
+    for (var mk = 0; mk < marketKeys.length; mk++) {
+      var mKey = marketKeys[mk];
+      var md = marketData[mKey];
+
+      if (md.booksMoved === 0) continue;
+
+      var result = classifySharpMove(md);
+      if (result.classification === 'NO_SHARP_EVIDENCE') continue;
+
+      // Which side is market action on?
+      // Net direction of books: negative = away team getting shorter (sharps on away)
+      //                          positive = away team getting longer (sharps on home)
+      var netDir = md.directionVotes < 0 ? -1 : 1;
+      var sharpSide, sharpPt, betType;
+
+      if (mKey === 'spreads') {
+        if (netDir < 0) {
+          sharpSide = game.away_team;
+          sharpPt = formatPt(md.curPt);
+        } else {
+          sharpSide = game.home_team;
+          sharpPt = formatPt(-(md.curPt));
+        }
+        betType = 'Spread';
       } else {
-        pct = Math.min(70, Math.round(m.movement * 18));
-        bfor = Math.floor(28 + Math.random() * 20);
-        mfor = Math.floor(55 + Math.random() * 20);
-        str = 3;
+        sharpSide = netDir > 0 ? 'OVER' : 'UNDER';
+        sharpPt = '' + Math.abs(md.curPt);
+        betType = 'Total';
       }
 
-      found.push({
-        id: m.type + '_' + game.id + '_' + now,
-        type: m.type,
+      var openPt = md.openPt !== null ? md.openPt : md.curPt;
+
+      var signal = {
+        id: result.classification + '_' + game.id + '_' + mKey + '_' + now,
+        type: getSharpType(result.classification),
+        sharpClass: result.classification,
+        sharpLabel: getSharpLabel(result.classification),
         sport: sport,
         icon: sport,
         game: game.away_team + ' vs ' + game.home_team,
         gameId: game.id,
-        bet: m.sharpTeam + ' ' + m.sharpPt,
-        btype: m.market.key === 'spreads' ? 'Spread' : 'Total',
+        bet: sharpSide + ' ' + sharpPt,
+        btype: betType,
         gtime: formatTime(game.commence_time),
-        open: m.market.key === 'totals' ? formatTotal(m.prevPt) : formatPt(m.prevPt),
-        cur: m.market.key === 'totals' ? formatTotal(m.curPt) : formatPt(m.curPt),
-        mov: formatMov(m.diff),
-        pct: pct,
-        bfor: bfor,
-        mfor: mfor,
-        books: [m.book.title],
-        str: str,
-        ago: Math.round(m.mins),
-        ts: now
-      });
+        open: formatPt(openPt),
+        cur: formatPt(md.curPt),
+        mov: formatMov(md.directionVotes < 0 ? -md.maxMovement : md.maxMovement),
+        books: md.bookList.slice(0, 5),
+        bookCount: md.booksMoved,
+        sharpBookMoved: md.sharpBookMoved,
+        crossedKey: md.crossedKeyNumber,
+        confidence: result.confidence,
+        evidence: result.evidence,
+        str: result.str,
+        ago: Math.round(md.minsMoved === 9999 ? 0 : md.minsMoved),
+        ts: now,
+        // Display fields
+        pct: Math.min(95, result.confidence * 6),
+        bfor: 0, // No ticket% from Odds API — never fabricate
+        mfor: 0
+      };
+
+      if (!bestSignal || result.str > bestSignal.str) {
+        bestSignal = signal;
+      }
+    }
+
+    if (bestSignal) {
+      // Surface POSSIBLE and above — CONFIRMED and STRONG are rare and important
+      found.push(bestSignal);
+      console.log(bestSignal.sharpLabel + ': ' + game.away_team + ' vs ' + game.home_team +
+        ' | ' + bestSignal.bet + ' (' + bestSignal.btype + ')' +
+        ' | Open: ' + bestSignal.open + ' → ' + bestSignal.cur +
+        ' | Books: ' + bestSignal.bookCount +
+        (bestSignal.sharpBookMoved ? ' | Sharp book moved' : '') +
+        (bestSignal.crossedKey ? ' | KEY NUMBER: ' + bestSignal.crossedKey : '') +
+        ' | ' + bestSignal.evidence.join('; '));
     }
   }
   return found;
@@ -350,14 +583,14 @@ cron.schedule('*/15 * * * *', async function() {
       liveSignals = newSigs.concat(liveSignals).slice(0, 60);
       console.log(newSigs.length + ' new signals detected');
     } else {
-      console.log('No movements detected');
+      console.log('No RLM movements detected this cycle');
     }
   } catch (err) {
     console.log('Cron error: ' + err.message);
   }
 });
 
-// SERVE THE APP DIRECTLY
+// SERVE THE APP
 app.get('/', function(req, res) {
   var appPath = path.join(__dirname, 'app.html');
   if (fs.existsSync(appPath)) {
@@ -372,7 +605,7 @@ app.get('/health', function(req, res) {
 });
 
 app.get('/api/signals', function(req, res) {
-  res.json({signals:liveSignals, count:liveSignals.length, games:gamesCache.length, updated:lastUpdated});
+  res.json({signals:liveSignals,count:liveSignals.length,updated:lastUpdated});
 });
 
 app.get('/api/games', function(req, res) {
@@ -380,7 +613,6 @@ app.get('/api/games', function(req, res) {
     return {id:g.id,sport:getSportName(g.sportKey),home:g.home_team,away:g.away_team,time:formatTime(g.commence_time)};
   }));
 });
-
 
 app.get('/api/odds', function(req, res) {
   var sport = req.query.sport || 'ALL';
@@ -391,18 +623,27 @@ app.get('/api/odds', function(req, res) {
     if(g.bookmakers) {
       g.bookmakers.slice(0, 4).forEach(function(book) {
         var spreads = null;
+        var totals = null;
         var ml = null;
         if(book.markets) {
           book.markets.forEach(function(m) {
             if(m.key === 'spreads') spreads = m;
+            if(m.key === 'totals') totals = m;
             if(m.key === 'h2h') ml = m;
           });
         }
         var awaySpread = null, homeSpread = null, awayML = null, homeML = null;
+        var overTotal = null, underTotal = null;
         if(spreads && spreads.outcomes) {
           spreads.outcomes.forEach(function(o) {
             if(o.name === g.away_team) awaySpread = o.point;
             if(o.name === g.home_team) homeSpread = o.point;
+          });
+        }
+        if(totals && totals.outcomes) {
+          totals.outcomes.forEach(function(o) {
+            if(o.name === 'Over') overTotal = o.point;
+            if(o.name === 'Under') underTotal = o.point;
           });
         }
         if(ml && ml.outcomes) {
@@ -411,12 +652,14 @@ app.get('/api/odds', function(req, res) {
             if(o.name === g.home_team) homeML = o.price;
           });
         }
+        var totalPt = overTotal || underTotal;
         books.push({
           book: book.title,
-          awaySpread: awaySpread ? formatPt(awaySpread) : null,
-          homeSpread: homeSpread ? formatPt(homeSpread) : null,
-          awayML: awayML ? (awayML > 0 ? '+'+awayML : ''+awayML) : null,
-          homeML: homeML ? (homeML > 0 ? '+'+homeML : ''+homeML) : null
+          awaySpread: awaySpread !== null ? formatPt(awaySpread) : null,
+          homeSpread: homeSpread !== null ? formatPt(homeSpread) : null,
+          awayML: awayML !== null ? (awayML > 0 ? '+'+awayML : ''+awayML) : null,
+          homeML: homeML !== null ? (homeML > 0 ? '+'+homeML : ''+homeML) : null,
+          total: totalPt !== null ? '' + totalPt : null
         });
       });
     }
@@ -432,106 +675,76 @@ app.get('/api/odds', function(req, res) {
   res.json(result);
 });
 
+// ===== S.I.D.E. AI — Rate limited by plan =====
+const TRIAL_CALL_LIMIT = 5;
+const PAID_CALL_LIMIT = 10;
+const ADMIN_CALL_LIMIT = 999;
 
-// Cost-based rate limiter — trial vs paid limits
 var aiCallTracker = {};
-var COST_PER_CALL = 0.08;        // estimated average cost per AI call
-var COST_PER_PICKS = 0.15;       // estimated cost per daily picks generation
 
-// Trial limits: 5 AI calls + 2 daily picks per day
-var TRIAL_CALL_LIMIT = 5;
-var TRIAL_PICKS_LIMIT = 2;
-
-// Paid limits: 10 AI calls + unlimited picks (cached anyway)
-var PAID_CALL_LIMIT = 10;
-var PAID_PICKS_LIMIT = 999;
-
-function getTracker(ip) {
+function checkRateLimit(userId, plan) {
   var now = Date.now();
   var dayMs = 24 * 60 * 60 * 1000;
-  if(!aiCallTracker[ip] || now > aiCallTracker[ip].resetAt) {
-    aiCallTracker[ip] = { calls: 0, picks: 0, resetAt: now + dayMs };
+  var limit = plan === 'admin' ? ADMIN_CALL_LIMIT : (plan === 'monthly' || plan === 'annual') ? PAID_CALL_LIMIT : TRIAL_CALL_LIMIT;
+
+  if(!aiCallTracker[userId]) aiCallTracker[userId] = { count: 0, resetAt: now + dayMs };
+  if(now > aiCallTracker[userId].resetAt) {
+    aiCallTracker[userId] = { count: 0, resetAt: now + dayMs };
   }
-  return aiCallTracker[ip];
+  aiCallTracker[userId].count++;
+  return {
+    allowed: aiCallTracker[userId].count <= limit,
+    used: aiCallTracker[userId].count - 1,
+    limit: limit
+  };
 }
 
-function checkRateLimit(ip, isTrial, type) {
-  // Admin accounts get unlimited calls
-  if(!isTrial && type === 'admin') return true;
-  
-  var tracker = getTracker(ip);
-  var callLimit = isTrial ? TRIAL_CALL_LIMIT : PAID_CALL_LIMIT;
-  var picksLimit = isTrial ? TRIAL_PICKS_LIMIT : PAID_PICKS_LIMIT;
-
-  if(type === 'picks') {
-    if(tracker.picks >= picksLimit) return false;
-    tracker.picks++;
-    return true;
-  } else {
-    if(tracker.calls >= callLimit) return false;
-    tracker.calls++;
-    return true;
-  }
-}
-
-function getRemainingCalls(ip, isTrial) {
-  var tracker = getTracker(ip);
-  var callLimit = isTrial ? TRIAL_CALL_LIMIT : PAID_CALL_LIMIT;
-  return Math.max(0, callLimit - tracker.calls);
-}
-
-function getRemainingPicks(ip, isTrial) {
-  var tracker = getTracker(ip);
-  var picksLimit = isTrial ? TRIAL_PICKS_LIMIT : PAID_PICKS_LIMIT;
-  return Math.max(0, picksLimit - tracker.picks);
-}
-
-// Clean up old entries every hour
 setInterval(function() {
   var now = Date.now();
-  Object.keys(aiCallTracker).forEach(function(ip) {
-    if(now > aiCallTracker[ip].resetAt) delete aiCallTracker[ip];
+  Object.keys(aiCallTracker).forEach(function(uid) {
+    if(now > aiCallTracker[uid].resetAt) delete aiCallTracker[uid];
   });
 }, 60 * 60 * 1000);
 
 app.post('/api/edge', async function(req, res) {
-  var ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-  
-  // Determine if trial, paid, or admin user from token
-  var isTrial = true;
-  var isAdmin = false;
-  var callType = req.body.callType || 'chat';
-  try {
-    var token = req.body.token || req.headers['authorization'] || '';
-    if(token) {
-      var decoded = jwt.verify(token, JWT_SECRET);
-      // Read plan from database for accuracy
-      var userResult = await supabase.from('users').select('plan').eq('id', decoded.id).single();
-      var userPlan = userResult.data ? userResult.data.plan : decoded.plan;
-      isAdmin = userPlan === 'admin';
-      isTrial = !isAdmin && (userPlan === 'trial');
-    }
-  } catch(e) { isTrial = true; }
+  var token = req.body.token || req.headers['authorization'] || '';
+  token = token.replace('Bearer ', '');
 
-  var remaining = isAdmin ? 999 : getRemainingCalls(ip, isTrial);
-  
-  if(!isAdmin && !checkRateLimit(ip, isTrial, callType)) {
-    console.log('EDGE AI RATE LIMITED: ' + ip + ' (trial: ' + isTrial + ', type: ' + callType + ')');
-    var limitMsg = isTrial 
-      ? 'You have reached your trial limit of ' + TRIAL_CALL_LIMIT + ' S.I.D.E. AI calls per day. Start your subscription to unlock ' + PAID_CALL_LIMIT + ' calls per day!'
-      : 'You have reached your daily S.I.D.E. AI limit. Your limit resets at midnight. Come back tomorrow for fresh analysis!';
-    if(callType === 'picks') {
-      limitMsg = isTrial
-        ? 'You have reached your trial limit of ' + TRIAL_PICKS_LIMIT + ' Daily Picks refreshes. Subscribe to unlock more!'
-        : 'Daily picks limit reached. Come back tomorrow!';
+  var userId = 'anon_' + (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown');
+  var plan = 'trial';
+
+  if(token) {
+    try {
+      var decoded = jwt.verify(token, JWT_SECRET);
+      userId = 'user_' + decoded.id;
+      // Always read plan from DB to avoid stale JWT
+      var planRes = await supabase.from('users').select('plan, subscription_status').eq('id', decoded.id).single();
+      if(planRes.data) {
+        plan = planRes.data.plan || 'trial';
+        // Check subscription is still valid
+        var status = planRes.data.subscription_status;
+        if(status === 'cancelled' || status === 'past_due') {
+          return res.status(403).json({ error: 'Subscription inactive', content: [{type:'text', text:'Your subscription is not active. Please resubscribe at sharpshadowai.com.'}] });
+        }
+      }
+    } catch(e) {
+      // Invalid token — treat as trial
     }
-    return res.status(429).json({ 
+  }
+
+  var rateCheck = checkRateLimit(userId, plan);
+  if(!rateCheck.allowed) {
+    var limitMsg = plan === 'trial'
+      ? 'You have used all ' + TRIAL_CALL_LIMIT + ' of your free trial AI calls. Subscribe to get 10 calls per day.'
+      : 'You have reached your daily limit of ' + PAID_CALL_LIMIT + ' S.I.D.E. AI calls. Your limit resets at midnight.';
+    console.log('AI RATE LIMITED: ' + userId + ' plan=' + plan);
+    return res.status(429).json({
       error: 'Daily limit reached',
-      remaining: 0,
-      content: [{type:'text', text:'⚠️ ' + limitMsg}]
+      content: [{type:'text', text: limitMsg}]
     });
   }
-  console.log('EDGE AI CALLED - ' + (isTrial ? 'TRIAL' : 'PAID') + ' user - ' + callType + ' - remaining: ' + getRemainingCalls(ip, isTrial));
+
+  console.log('SIDE AI CALLED: ' + userId + ' plan=' + plan + ' call=' + (rateCheck.used+1) + '/' + rateCheck.limit);
   try {
     var response = await axios.post('https://api.anthropic.com/v1/messages', {
       model: req.body.model || 'claude-haiku-4-5-20251001',
@@ -546,113 +759,23 @@ app.post('/api/edge', async function(req, res) {
         'content-type': 'application/json'
       }
     });
-    console.log('EDGE AI SUCCESS');
-    var responseData = response.data;
-    responseData.remaining = isAdmin ? 999 : getRemainingCalls(ip, isTrial);
-    responseData.remainingPicks = isAdmin ? 999 : getRemainingPicks(ip, isTrial);
-    res.json(responseData);
+    console.log('SIDE AI SUCCESS: ' + userId);
+    res.json(response.data);
   } catch (err) {
-    console.log('EDGE AI ERROR: ' + (err.response ? err.response.status : err.message));
+    console.log('SIDE AI ERROR: ' + (err.response ? err.response.status : err.message));
     if (err.response && err.response.data) {
-      console.log('EDGE AI ERROR DETAIL: ' + JSON.stringify(err.response.data));
+      console.log('SIDE AI ERROR DETAIL: ' + JSON.stringify(err.response.data));
     }
     res.status(500).json({ error: err.message, content: [{type:'text', text:'Sorry, I had trouble connecting. Please try again.'}] });
   }
 });
 
-// ===== DAILY PICKS CACHE =====
-var picksCache = {
-  picks: null,
-  date: null,
-  generating: false
-};
+// ===== STRIPE CHECKOUT =====
 
-async function generateDailyPicks() {
-  if(picksCache.generating) return;
-  picksCache.generating = true;
-  console.log('GENERATING DAILY PICKS...');
-  
-  try {
-    var today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
-    var time = new Date().toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', timeZoneName:'short'});
-    var sports = ['NFL','MLB','NBA','NCAAF','NCAAB'];
-    var startSport = sports[new Date().getDate() % sports.length];
-
-    var response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
-      system: 'You are S.I.D.E. AI (Sports Intelligence Data Engine), the sharpest sports betting analyst in the world. You have access to live web search. Today is ' + today + ' and current time is ' + time + '. Your ONLY goal is to find the 3 highest probability winning bets on games that have NOT yet started. Search across NFL, MLB, NBA, NCAA Football, and NCAA Basketball. SKIP any game that has already started or ended. Analyze sharp money movement, line value, injuries, matchups. Only recommend bets with genuine edge. Be brutally honest — PASS on bad spots. For each pick format exactly: GAME: [teams] | SPORT: [sport] | PICK: [bet] | CONFIDENCE: [X%] | KEY STATS: [2-3 key facts] | SHARP ANGLE: [why sharp money likes this] | RECOMMENDATION: [BET or PASS] | ---',
-      messages: [{role:'user', content:'Find the 3 best upcoming bets for today ' + today + '. Only pick games that have NOT started yet. Start with ' + startSport + ' but go wherever the value is.'}],
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }]
-    }, {
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      }
-    });
-
-    var text = response.data.content
-      .filter(function(c){ return c.type === 'text'; })
-      .map(function(c){ return c.text; })
-      .join('');
-
-    picksCache.picks = text;
-    picksCache.date = new Date().toDateString();
-    console.log('DAILY PICKS CACHED: ' + picksCache.date);
-  } catch(err) {
-    console.log('PICKS GENERATION ERROR: ' + err.message);
-  }
-  picksCache.generating = false;
-}
-
-// Serve cached picks to all customers
-app.get('/api/picks', async function(req, res) {
-  var today = new Date().toDateString();
-  
-  // Generate if no cache or cache is from yesterday
-  if(!picksCache.picks || picksCache.date !== today) {
-    if(!picksCache.generating) {
-      generateDailyPicks(); // generate in background
-    }
-    return res.json({ 
-      picks: null, 
-      generating: true,
-      message: 'S.I.D.E. AI is analyzing today\'s slate. Check back in 30 seconds.'
-    });
-  }
-  
-  res.json({ 
-    picks: picksCache.picks, 
-    date: picksCache.date,
-    generating: false
-  });
-});
-
-// Generate picks at 8am every day
-cron.schedule('0 8 * * *', function() {
-  console.log('8AM CRON: Generating daily picks...');
-  generateDailyPicks();
-});
-
-
-// Trial: $4 charged immediately (one-time), then $49.99/month subscription starts after a 2-day trial
+// Trial: 2-day free trial then $79.99/month
 app.post('/api/checkout/trial', async function(req, res) {
   try {
     var baseUrl = req.body.success_url || process.env.APP_URL || 'http://localhost:3001';
-    
-    // Check if email already exists in database (prevent trial abuse)
-    var email = req.body.email || '';
-    if(email) {
-      var existing = await supabase.from('users').select('id, plan, subscription_status').eq('email', email.toLowerCase().trim()).single();
-      if(existing.data) {
-        return res.status(400).json({ 
-          error: 'An account with this email already exists. Please log in instead.',
-          redirect: 'login'
-        });
-      }
-    }
-
     var session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -662,8 +785,7 @@ app.post('/api/checkout/trial', async function(req, res) {
         trial_period_days: 2,
         trial_settings: {
           end_behavior: { missing_payment_method: 'cancel' }
-        },
-        metadata: { trial: 'true' }
+        }
       },
       payment_method_collection: 'always',
       success_url: baseUrl + '?checkout=success&plan=trial',
@@ -677,7 +799,7 @@ app.post('/api/checkout/trial', async function(req, res) {
   }
 });
 
-// Annual: $349.99/year, no trial, non-refundable
+// Annual: $349.99/year
 app.post('/api/checkout/annual', async function(req, res) {
   try {
     var baseUrl = req.body.success_url || process.env.APP_URL || 'http://localhost:3001';
@@ -699,7 +821,7 @@ app.post('/api/checkout/annual', async function(req, res) {
 
 // ===== AUTH ENDPOINTS =====
 
-// Sign up — called after successful Stripe payment
+// Sign up — called after successful Stripe checkout
 app.post('/api/auth/signup', async function(req, res) {
   try {
     var email = (req.body.email || '').toLowerCase().trim();
@@ -709,120 +831,42 @@ app.post('/api/auth/signup', async function(req, res) {
     if(!email || !password) return res.status(400).json({ error: 'Email and password required' });
     if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
-    // Check if email already exists
-    var existing = await supabase.from('users').select('id, stripe_customer_id').eq('email', email).single();
-    if(existing.data && existing.data.stripe_customer_id) {
-      // Account was pre-created by webhook — just add password and return token
-      var hash = await bcrypt.hash(password, 10);
-      await supabase.from('users').update({ password_hash: hash, plan: plan }).eq('email', email);
-      var token = jwt.sign({ id: existing.data.id, email: email, plan: plan }, JWT_SECRET, { expiresIn: '30d' });
-      console.log('SIGNUP: Linked existing Stripe account - ' + email);
-      return res.json({ success: true, token: token, email: email, plan: plan });
-    }
-    if(existing.data && !existing.data.stripe_customer_id) {
-      return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
-    }
-
-    // Hash password
     var hash = await bcrypt.hash(password, 10);
 
-    // Create user in database
+    // Check if webhook pre-created a record for this email
+    var existing = await supabase.from('users').select('*').eq('email', email).single();
+
+    if(existing.data) {
+      // If it's a full account (has password_hash), reject duplicate signup
+      if(existing.data.password_hash) {
+        return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+      }
+      // Webhook pre-created record — just fill in the password and plan
+      var updateRes = await supabase.from('users')
+        .update({ password_hash: hash, plan: plan, subscription_status: 'trialing' })
+        .eq('email', email);
+      if(updateRes.error) throw updateRes.error;
+
+      var token = jwt.sign({ id: existing.data.id, email: email, plan: plan }, JWT_SECRET, { expiresIn: '30d' });
+      console.log('NEW USER LINKED (webhook pre-created): ' + email + ' plan: ' + plan);
+      return res.json({ success: true, token: token, email: email, plan: plan });
+    }
+
+    // Brand new user (no webhook pre-create) — create fresh
     var result = await supabase.from('users').insert([{
       email: email,
       password_hash: hash,
       plan: plan,
-      subscription_status: 'active'
+      subscription_status: 'trialing'
     }]).select().single();
 
     if(result.error) throw result.error;
 
-    // Generate JWT token
     var token = jwt.sign({ id: result.data.id, email: email, plan: plan }, JWT_SECRET, { expiresIn: '30d' });
-
     console.log('NEW USER SIGNUP: ' + email + ' plan: ' + plan);
     res.json({ success: true, token: token, email: email, plan: plan });
   } catch(err) {
     console.log('SIGNUP ERROR: ' + err.message);
-    console.log('SIGNUP ERROR DETAIL: ' + JSON.stringify(err));
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Forgot password — sends reset email via Zoho SMTP
-app.post('/api/auth/forgot-password', async function(req, res) {
-  try {
-    var email = (req.body.email || '').toLowerCase().trim();
-    if(!email) return res.status(400).json({ error: 'Email required' });
-
-    // Check if user exists
-    var result = await supabase.from('users').select('id, email').eq('email', email).single();
-    
-    // Always return success even if email not found (security best practice)
-    if(!result.data) {
-      return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
-    }
-
-    // Generate reset token
-    var resetToken = jwt.sign({ id: result.data.id, email: email, type: 'reset' }, JWT_SECRET, { expiresIn: '1h' });
-    var resetUrl = (process.env.APP_URL || 'https://sharpshadowai.com') + '?reset=' + resetToken;
-
-    // Send email via Resend API
-    var emailRes = await axios.post('https://api.resend.com/emails', {
-      from: 'Sharp Shadow AI <support@sharpshadowai.com>',
-      to: email,
-      subject: 'Reset Your Sharp Shadow AI Password',
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#020408;color:#e8f4f8;padding:32px">
-          <h2 style="color:#00f5ff;font-size:20px;letter-spacing:2px">SHARP SHADOW AI</h2>
-          <p style="color:#9ec8d8;font-size:14px;line-height:1.6">You requested a password reset. Click the button below to set a new password. This link expires in 1 hour.</p>
-          <a href="${resetUrl}" style="display:inline-block;background:#00f5ff;color:#020408;font-weight:800;padding:14px 32px;text-decoration:none;font-size:14px;letter-spacing:1px;margin:20px 0">RESET MY PASSWORD</a>
-          <p style="color:#4a7a8a;font-size:12px">If you didn't request this, ignore this email. Your password won't change.</p>
-          <p style="color:#4a7a8a;font-size:12px">Sharp Shadow AI · support@sharpshadowai.com</p>
-        </div>
-      `
-    }, {
-      headers: {
-        'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log('RESEND RESPONSE: ' + JSON.stringify(emailRes.data));
-
-    console.log('PASSWORD RESET EMAIL SENT: ' + email);
-    res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
-  } catch(err) {
-    console.log('FORGOT PASSWORD ERROR: ' + err.message);
-    res.status(500).json({ error: 'Failed to send reset email. Please contact support@sharpshadowai.com' });
-  }
-});
-
-// Reset password — called when customer clicks link in email
-app.post('/api/auth/reset-password', async function(req, res) {
-  try {
-    var token = req.body.token || '';
-    var password = req.body.password || '';
-
-    if(!token || !password) return res.status(400).json({ error: 'Token and password required' });
-    if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-
-    // Verify reset token
-    var decoded = jwt.verify(token, JWT_SECRET);
-    if(decoded.type !== 'reset') return res.status(400).json({ error: 'Invalid reset token' });
-
-    // Hash new password
-    var hash = await bcrypt.hash(password, 10);
-
-    // Update password in database
-    var result = await supabase.from('users').update({ password_hash: hash }).eq('id', decoded.id);
-    if(result.error) throw result.error;
-
-    console.log('PASSWORD RESET SUCCESS: ' + decoded.email);
-    res.json({ success: true, message: 'Password updated successfully. Please log in.' });
-  } catch(err) {
-    console.log('RESET PASSWORD ERROR: ' + err.message);
-    if(err.name === 'TokenExpiredError') {
-      return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
-    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -835,22 +879,18 @@ app.post('/api/auth/login', async function(req, res) {
 
     if(!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
-    // Find user
     var result = await supabase.from('users').select('*').eq('email', email).single();
     if(!result.data) return res.status(401).json({ error: 'No account found with this email. Please sign up first.' });
 
     var user = result.data;
 
-    // Check subscription status
+    if(!user.password_hash) return res.status(401).json({ error: 'Account setup incomplete. Please use Forgot Password to set your password.' });
     if(user.subscription_status === 'cancelled') return res.status(401).json({ error: 'Your subscription has been cancelled. Please resubscribe to continue.' });
 
-    // Verify password
     var valid = await bcrypt.compare(password, user.password_hash);
     if(!valid) return res.status(401).json({ error: 'Incorrect password. Please try again.' });
 
-    // Generate JWT token
     var token = jwt.sign({ id: user.id, email: email, plan: user.plan }, JWT_SECRET, { expiresIn: '30d' });
-
     console.log('USER LOGIN: ' + email);
     res.json({ success: true, token: token, email: email, plan: user.plan });
   } catch(err) {
@@ -859,54 +899,115 @@ app.post('/api/auth/login', async function(req, res) {
   }
 });
 
-// Verify token (check if still logged in)
+// Verify token
 app.post('/api/auth/verify', async function(req, res) {
   try {
     var token = req.body.token || '';
     if(!token) return res.status(401).json({ valid: false });
     var decoded = jwt.verify(token, JWT_SECRET);
-    // Check subscription status
+
     var result = await supabase.from('users').select('subscription_status, plan, subscription_end').eq('id', decoded.id).single();
     if(!result.data) return res.json({ valid: false });
 
     var status = result.data.subscription_status;
     var subEnd = result.data.subscription_end;
+    var plan = result.data.plan;
 
-    // Allow access if:
-    // 1. Status is active or trialing
-    // 2. Status is cancelling (cancelled but still within paid period)
-    // 3. Status is cancelled BUT subscription_end is in the future (still has paid time left)
     var hasAccess = false;
     if(status === 'active' || status === 'trialing' || status === 'cancelling') {
       hasAccess = true;
-    } else if(status === 'cancelled' && subEnd) {
-      // Only allow access after cancellation if they were a PAID customer
-      // Trial cancellations should lose access immediately
-      var isPaidCancellation = result.data.plan === 'monthly' || result.data.plan === 'annual' || result.data.plan === 'admin';
-      hasAccess = isPaidCancellation && new Date(subEnd) > new Date();
+    } else if(status === 'cancelled' && subEnd && plan !== 'trial') {
+      // Only give grace period to paid customers, not trial users
+      hasAccess = new Date(subEnd) > new Date();
     }
 
     if(!hasAccess) return res.json({ valid: false });
-    res.json({ valid: true, email: decoded.email, plan: result.data.plan, status: status });
+    res.json({ valid: true, email: decoded.email, plan: plan, status: status });
   } catch(err) {
     res.json({ valid: false });
   }
 });
 
-// ===== STRIPE WEBHOOK =====
-// Must use raw body for Stripe signature verification
+// Forgot password
+app.post('/api/auth/forgot-password', async function(req, res) {
+  try {
+    var email = (req.body.email || '').toLowerCase().trim();
+    if(!email) return res.status(400).json({ error: 'Email required' });
+
+    var result = await supabase.from('users').select('id').eq('email', email).single();
+    if(!result.data) {
+      // Don't reveal if email exists
+      return res.json({ success: true, message: 'If an account exists with this email, you will receive a reset link.' });
+    }
+
+    var resetToken = require('crypto').randomBytes(32).toString('hex');
+    var resetExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+    await supabase.from('users')
+      .update({ reset_token: resetToken, reset_token_expiry: resetExpiry })
+      .eq('email', email);
+
+    var appUrl = process.env.APP_URL || 'https://sharpshadowai.com';
+    var resetUrl = appUrl + '?reset_token=' + resetToken;
+
+    await axios.post('https://api.resend.com/emails', {
+      from: 'Sharp Shadow AI <noreply@sharpshadowai.com>',
+      to: [email],
+      subject: 'Reset Your Sharp Shadow AI Password',
+      html: '<div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#020408;color:#e8f4f8;padding:40px;border:1px solid rgba(0,245,255,.2)">' +
+        '<h2 style="color:#00f5ff;font-family:monospace;letter-spacing:2px">SHARP SHADOW AI</h2>' +
+        '<p style="color:#9ec8d8;margin:24px 0">You requested a password reset. Click the button below to set a new password. This link expires in 1 hour.</p>' +
+        '<a href="' + resetUrl + '" style="display:inline-block;background:#00f5ff;color:#020408;font-weight:bold;padding:14px 32px;text-decoration:none;font-family:monospace;letter-spacing:1px">RESET PASSWORD</a>' +
+        '<p style="color:#4a7a8a;font-size:12px;margin-top:32px">If you did not request this, ignore this email. Questions? support@sharpshadowai.com</p>' +
+        '</div>'
+    }, {
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' }
+    });
+
+    console.log('PASSWORD RESET SENT: ' + email);
+    res.json({ success: true, message: 'Password reset link sent to your email.' });
+  } catch(err) {
+    console.log('FORGOT PASSWORD ERROR: ' + err.message);
+    res.status(500).json({ error: 'Failed to send reset email. Please try again or contact support@sharpshadowai.com' });
+  }
+});
+
+// Reset password
+app.post('/api/auth/reset-password', async function(req, res) {
+  try {
+    var token = req.body.token || '';
+    var password = req.body.password || '';
+
+    if(!token || !password) return res.status(400).json({ error: 'Token and password required' });
+    if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    var result = await supabase.from('users').select('id, reset_token_expiry').eq('reset_token', token).single();
+    if(!result.data) return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+    if(new Date(result.data.reset_token_expiry) < new Date()) {
+      return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+    }
+
+    var hash = await bcrypt.hash(password, 10);
+    await supabase.from('users')
+      .update({ password_hash: hash, reset_token: null, reset_token_expiry: null })
+      .eq('id', result.data.id);
+
+    console.log('PASSWORD RESET SUCCESS: user id=' + result.data.id);
+    res.json({ success: true, message: 'Password updated successfully. You can now log in.' });
+  } catch(err) {
+    console.log('RESET PASSWORD ERROR: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ===== MANAGE SUBSCRIPTION (Stripe Customer Portal) =====
 app.post('/api/customer-portal', async function(req, res) {
   try {
     var token = req.body.token || '';
-    if(!token) return res.status(400).json({ error: 'Not logged in. Please log in and try again.' });
-    var decoded = require('jsonwebtoken').verify(token, JWT_SECRET);
-    console.log('PORTAL REQUEST: user id=' + decoded.id + ' email=' + decoded.email);
-    var result = await supabase.from('users').select('stripe_customer_id, email').eq('id', decoded.id).single();
-    console.log('PORTAL USER DATA: ' + JSON.stringify(result.data));
+    var decoded = jwt.verify(token, JWT_SECRET);
+    var result = await supabase.from('users').select('stripe_customer_id').eq('id', decoded.id).single();
+    console.log('PORTAL: user id=' + decoded.id + ' stripe_customer_id=' + (result.data ? result.data.stripe_customer_id : 'none'));
     if(!result.data || !result.data.stripe_customer_id) {
-      console.log('PORTAL: No stripe_customer_id found for user ' + decoded.id);
       return res.status(400).json({ error: 'No subscription found. Please contact support@sharpshadowai.com' });
     }
     var session = await stripe.billingPortal.sessions.create({
@@ -923,14 +1024,15 @@ app.post('/api/customer-portal', async function(req, res) {
 var PORT = process.env.PORT || 3001;
 app.listen(PORT, async function() {
   console.log('Sharp Shadow AI server running on port ' + PORT);
-  console.log('Open your app at: http://localhost:' + PORT);
+  console.log('Sharp Money Detection: CONFIRMED = multi-book sync + sharp book + key number');
+  console.log('Sharp Money Detection: STRONG = notable move + 2+ books + supporting factors');
+  console.log('Sharp Money Detection: POSSIBLE = some indicators, incomplete picture');
   console.log('Loading initial odds...');
   try {
     var games = await fetchOdds();
     gamesCache = games;
     lastUpdated = new Date().toISOString();
     console.log('Loaded ' + games.length + ' games');
-    console.log('Watching for sharp movements every 10 minutes...');
   } catch (err) {
     console.log('Startup error: ' + err.message);
   }
