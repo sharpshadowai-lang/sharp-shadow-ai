@@ -1123,8 +1123,10 @@ function renderSignals(){
       '<div class="sc-bet">▸ ' + s.bet + '</div>' +
       '<div class="sc-bet-label" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">LINE MOVED</div>' +
       '<div class="sc-mov-row"><span class="sc-open">' + s.open + '</span><span class="sc-arrow">→</span><span class="sc-cur">' + s.cur + '</span><span class="sc-mov" style="color:var(--green)">' + s.mov + '</span></div>' +
-      '<div class="sc-sharp-pct" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin:4px 0">' + (s.mfor||0) + '% OF MONEY ON THIS SIDE</div>' +
-      '<div class="sc-bar-wrap"><div class="sc-bar" data-w="' + (s.pct||60) + '" style="width:0%"></div></div>' +
+      '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:6px 0;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<span style="color:var(--muted)">📚 ' + (s.bookCount||1) + ' BOOK' + ((s.bookCount||1)>1?'S':'') + ' MOVED</span>' +
+        '<span style="color:' + (s.strength>=6?'#00ff88':s.strength>=5?'#00e5ff':s.strength>=3?'#ffd700':'var(--muted)') + '">' + (s.sharpLabel||'NO SHARP EVIDENCE') + '</span>' +
+      '</div>' +
       '<div class="sc-footer"><span>' + (s.books ? s.books[0] : '') + '</span><span>' + (s.ago || 0) + 'm ago</span></div>' +
     '</div>';
   }).join('');
