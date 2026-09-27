@@ -1271,40 +1271,53 @@ async function loadPicks(){
     var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
     var token = localStorage.getItem('ss_token') || '';
 
-    var PICKS_SYSTEM = `You are S.I.D.E. AI. Today is ${today}. Your job is to output betting pick cards — nothing else.
+    var PICKS_SYSTEM = `You are S.I.D.E. AI — a sharp sports betting analyst who thinks like Vegas. Today is ${today}.
 
-STEP 1: Search the web for games happening TODAY (${today}) across NCAA football, MLB, MLS, and any other sport with games today. Search specifically for "college football odds ${today}" and "MLB odds ${today}".
+YOUR EDGE PHILOSOPHY: Vegas sets lines to balance action, not predict winners. Your job is to find where the public is wrong and where sharp money has moved the number. A team can be likely to win AND be a bad bet if the line already prices that in. Always ask: "Is there value at THIS number?"
 
-STEP 2: For the 3 best opportunities you find, output a pick card in EXACTLY this format. Start your response with the first pick card immediately — no intro text, no preamble.
+RESEARCH PROCESS — do all of this before outputting picks:
+1. Search "NFL odds ${today}" and "college football lines ${today}" and "MLB odds ${today}" and "NFL totals sharp money ${today}"
+2. For each candidate: find the OPENING line and CURRENT line — the movement tells you where sharp money went
+3. Look for: reverse line movement (line moves opposite to public betting %), steam moves (multiple books move fast), key number crossings (3, 7, 10, 14 in football only)
+4. Check injuries, weather for outdoor games, rest/travel disadvantages
+5. For totals specifically: search for pace of play, defensive rankings, weather, and total line movement direction
+
+SHARP THINKING FOR TOTALS:
+- Under is often sharper — public loves betting Overs
+- If a total opened 47 and dropped to 44, that's 3 points of sharp Under action — strong signal
+- Weather (wind, rain, cold) hammers Overs
+- Check both teams' pace, scoring trends, and defensive efficiency — not just the obvious matchup
+
+OUTPUT — exactly 3 pick cards, starting immediately with TIER: (no intro text):
 
 TIER: [1 / 2 / 3]
-SPORT: [sport name]
-GAME: [Away Team vs Home Team]
-BET: [exact bet — side, spread/ML/total, number]
+SPORT: [NFL / NCAAF / MLB / etc]
+GAME: [Away vs Home]
+BET: [exact bet — team/side, spread or ML or Over/Under, number]
 CURRENT LINE: [current line and juice]
 OPENING LINE: [opening line]
-LINE MOVEMENT: [e.g. Opened -3, now -5]
-KEY NUMBER CROSSED: [Yes - crossed 3 / No]
-RLM: [Yes / No]
+LINE MOVEMENT: [e.g. Opened 47.5, now 44 — sharp Under action]
+KEY NUMBER CROSSED: [Yes - crossed 3 / Yes - crossed 7 / No — ONLY 3, 7, 10, 14 count in football]
+RLM: [Yes — public on Over but line dropping / No]
 SHARP ACTION: [NO SHARP EVIDENCE / POSSIBLE SHARP ACTION / STRONG SHARP EVIDENCE]
-ESTIMATED WIN PROBABILITY: [X%]
-IMPLIED PROBABILITY: [X%]
-ESTIMATED EDGE: [+X% or -X%]
-KEY REASONS: [reason 1; reason 2; reason 3]
-MAIN RISK: [biggest risk]
+ESTIMATED WIN PROBABILITY: [X% — your honest estimate this bet wins]
+IMPLIED PROBABILITY: [X% — convert the juice to implied probability]
+ESTIMATED EDGE: [+X% if your prob exceeds implied / -X% if below]
+KEY REASONS: [3 sharp, specific reasons for THIS game — line movement, matchup angle, situational spot]
+MAIN RISK: [specific reason this loses]
 CONFIDENCE: [X%]
-VALUE STATUS: [GOOD VALUE / FAIR VALUE / OVERPRICED]
+VALUE STATUS: [GOOD VALUE if edge positive / FAIR VALUE if near 0 / OVERPRICED if negative]
 RECOMMENDATION: [BET / LEAN / PASS]
 
 ---
 
-[next pick card here]
-
-RULES:
-- Output 2-4 pick cards. Always give at least 2 picks — use LEAN or PASS recommendation if confidence is lower.
-- NEVER write paragraphs, analysis, or explanatory text. Pick cards only.
-- If a field's data is unavailable, write "Data not available" — never skip the field.
-- Separate each pick card with a line containing only: ---`;
+STRICT RULES:
+- Tier 1 = your strongest play (BET). Tier 2 = solid lean (LEAN or BET). Tier 3 = interesting angle (LEAN or PASS)
+- VALUE STATUS must match ESTIMATED EDGE — negative edge cannot be GOOD VALUE
+- KEY NUMBER: ONLY 3, 7, 10, 14 in football. 4, 4.5, 5, 6 are NOT key numbers — write No
+- KEY REASONS must be specific to this game — no references to other teams or irrelevant history
+- Think like a sharp: fade public teams with inflated lines, follow line movement not narrative
+- Never invent stats. Write "Data not available" if you cannot find it`;
 
     var r = await fetch('/api/edge', {
       method: 'POST',
@@ -1316,7 +1329,7 @@ RULES:
         system: PICKS_SYSTEM,
         messages: [{
           role: 'user',
-          content: 'Search for games and betting lines for today, ' + today + '. Output 2-4 pick cards in the exact format from your instructions. Begin your response with "TIER:" — do not write any other text before the first pick card.'
+          content: 'Today is ' + today + '. Search for today\'s games, opening lines, current lines, and line movement across NFL, NCAAF, and MLB. Find where sharp money has moved the number. Look for reverse line movement, steam moves, and totals that have dropped significantly from open. Output exactly 3 pick cards starting with TIER: — no other text.'
         }]
       })
     });
@@ -1392,9 +1405,20 @@ RULES:
       var mainRisk = fields['MAIN RISK'] || '';
       var keyReasons = fields['KEY REASONS'] || '';
 
-      var isBet = rec.toUpperCase().indexOf('BET') > -1;
+      // Client-side sanity: if edge is negative, force PASS and OVERPRICED regardless of AI output
+      var edgeNum = parseFloat((edge || '0').replace('%',''));
+      if(edgeNum < 0) {
+        rec = 'PASS';
+        valueStatus = 'OVERPRICED';
+      }
+
+      var isBet = rec.toUpperCase().indexOf('BET') > -1 && rec.toUpperCase().indexOf('PASS') === -1;
       var isLean = rec.toUpperCase() === 'LEAN';
+      var isPass = rec.toUpperCase() === 'PASS';
       var recColor = isBet ? 'var(--green)' : isLean ? 'var(--yellow)' : 'var(--red)';
+
+      // Dim PASS cards so BET/LEAN cards stand out
+      var cardOpacity = isPass ? 'opacity:.55' : '';
 
       var sharpColor = sharp.indexOf('STRONG') > -1 ? 'var(--cyan)' :
                        sharp.indexOf('POSSIBLE') > -1 ? 'var(--yellow)' : 'var(--muted)';
@@ -1402,7 +1426,7 @@ RULES:
       var tierColor = tier === '1' ? 'var(--cyan)' : tier === '2' ? 'var(--green)' : 'var(--muted)';
       var tierLabel = tier === '1' ? 'TIER 1 — HIGHEST CONFIDENCE' : tier === '2' ? 'TIER 2 — STRONG' : tier === '3' ? 'TIER 3 — LEAN' : '';
 
-      return '<div class="pick-card" style="margin-bottom:10px">' +
+      return '<div class="pick-card" style="margin-bottom:10px;' + cardOpacity + '">' +
         // Header row
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
