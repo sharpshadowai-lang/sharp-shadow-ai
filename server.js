@@ -395,6 +395,9 @@ function detectMoves(games) {
     var sport = getSportName(game.sportKey);
     if (!game.bookmakers) continue;
 
+    // Skip games that have already started (commence_time in the past)
+    if (game.commence_time && new Date(game.commence_time).getTime() <= now) continue;
+
     // Aggregate movement per market across all books
     var marketData = {};
 
@@ -534,6 +537,7 @@ function detectMoves(games) {
         bet: sharpSide + ' ' + sharpPt,
         btype: betType,
         gtime: formatTime(game.commence_time),
+        commenceTime: game.commence_time,
         open: formatPt(openPt),
         cur: formatPt(md.curPt),
         mov: formatMov(md.directionVotes < 0 ? -md.maxMovement : md.maxMovement),
@@ -578,6 +582,14 @@ cron.schedule('*/15 * * * *', async function() {
     var games = await fetchOdds();
     gamesCache = games;
     lastUpdated = new Date().toISOString();
+    var nowTs = Date.now();
+
+    // Remove signals for games that have already started
+    liveSignals = liveSignals.filter(function(s) {
+      if (!s.commenceTime) return true; // keep if no time info
+      return new Date(s.commenceTime).getTime() > nowTs;
+    });
+
     var newSigs = detectMoves(games);
     if (newSigs.length > 0) {
       // Merge: new signals override old ones for the same game+market combo
