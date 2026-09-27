@@ -8,7 +8,7 @@ const path = require('path');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');a
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const JWT_SECRET = process.env.JWT_SECRET || 'sharpshadow_jwt_secret_2025';
@@ -580,10 +580,18 @@ cron.schedule('*/15 * * * *', async function() {
     lastUpdated = new Date().toISOString();
     var newSigs = detectMoves(games);
     if (newSigs.length > 0) {
-      liveSignals = newSigs.concat(liveSignals).slice(0, 60);
-      console.log(newSigs.length + ' new signals detected');
+      // Merge: new signals override old ones for the same game+market combo
+      var merged = newSigs.concat(liveSignals);
+      var seen = {};
+      liveSignals = merged.filter(function(s) {
+        var key = s.gameId + '__' + s.btype; // one signal per game per market type
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      }).slice(0, 60);
+      console.log(newSigs.length + ' new signals detected, ' + liveSignals.length + ' total after dedup');
     } else {
-      console.log('No RLM movements detected this cycle');
+      console.log('No new movements detected this cycle');
     }
   } catch (err) {
     console.log('Cron error: ' + err.message);
