@@ -8,7 +8,7 @@ const path = require('path');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');a
+const jwt = require('jsonwebtoken');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const JWT_SECRET = process.env.JWT_SECRET || 'sharpshadow_jwt_secret_2025';
