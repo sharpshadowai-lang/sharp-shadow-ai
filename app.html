@@ -1293,7 +1293,7 @@ OUTPUT - exactly 3 pick cards, starting immediately with TIER: (no intro text):
 TIER: [1 / 2 / 3]
 SPORT: [NFL / NCAAF / MLB / etc]
 GAME: [Away vs Home]
-BET: [exact bet - team/side, spread or ML or Over/Under, number]
+BET: [exact bet - TEAM spread, TEAM moneyline, or TEAM total (Over/Under) ONLY - NO player props, NO individual stats]
 CURRENT LINE: [current line and juice]
 OPENING LINE: [opening line]
 LINE MOVEMENT: [e.g. Opened 47.5, now 44 - sharp Under action]
@@ -1317,6 +1317,7 @@ STRICT RULES:
 - KEY NUMBER: ONLY 3, 7, 10, 14 in football. 4, 4.5, 5, 6 are NOT key numbers - write No
 - KEY REASONS must be specific to this game - no references to other teams or irrelevant history
 - Think like a sharp: fade public teams with inflated lines, follow line movement not narrative
+- ONLY bet types allowed: team spread (ATS), team moneyline, game total (Over/Under). NO player props, NO first half props, NO quarter props, NO individual stat bets
 - Never invent stats. Write "Data not available" if you cannot find it`;
 
     var r = await fetch('/api/edge', {
