@@ -124,6 +124,7 @@ let previousLines = {};
 let liveSignals = [];
 let gamesCache = [];
 let lastUpdated = null;
+let anCache = {}; // Action Network bet % cache: keyed by normalized team name
 
 const SPORTS = [
   'basketball_nba',
@@ -165,6 +166,115 @@ async function fetchOdds() {
     }
   }
   return all;
+}
+
+// ===== ACTION NETWORK BET % via Apify =====
+async function fetchActionNetwork() {
+  var apifyToken = process.env.APIFY_TOKEN;
+  if (!apifyToken) { console.log('No APIFY_TOKEN set, skipping Action Network fetch'); return; }
+
+  var leagues = ['nfl', 'ncaaf', 'mlb', 'nba', 'nhl'];
+  var newCache = {};
+
+  for (var li = 0; li < leagues.length; li++) {
+    var league = leagues[li];
+    try {
+      // Start an Apify run for this league
+      var runRes = await axios.post(
+        'https://api.apify.com/v2/acts/zen-studio~action-network-odds/runs?token=' + apifyToken,
+        { leagues: [league] },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
+      );
+      var runId = runRes.data.data.id;
+
+      // Wait up to 60s for the run to finish
+      var finished = false;
+      for (var attempt = 0; attempt < 12; attempt++) {
+        await new Promise(function(r){ setTimeout(r, 5000); });
+        var statusRes = await axios.get(
+          'https://api.apify.com/v2/actor-runs/' + runId + '?token=' + apifyToken
+        );
+        var runStatus = statusRes.data.data.status;
+        if (runStatus === 'SUCCEEDED') { finished = true; break; }
+        if (runStatus === 'FAILED' || runStatus === 'ABORTED') { break; }
+      }
+
+      if (!finished) { console.log('AN run did not finish for ' + league); continue; }
+
+      // Fetch results
+      var dataRes = await axios.get(
+        'https://api.apify.com/v2/actor-runs/' + runId + '/dataset/items?token=' + apifyToken + '&limit=200'
+      );
+      var items = dataRes.data;
+
+      // Parse bet % data per game
+      items.forEach(function(item) {
+        if (!item.away_team && !item.home_team && !item.teams) return;
+        // Try to extract team names and bet %
+        var awayName = item.away_team || (item.teams && item.teams[0] && item.teams[0].full_name) || '';
+        var homeName = item.home_team || (item.teams && item.teams[1] && item.teams[1].full_name) || '';
+        if (!awayName && !homeName) return;
+
+        var gameKey = normTeam(awayName) + '__' + normTeam(homeName);
+
+        // Extract spread and total bet %
+        var spreadData = null, totalData = null;
+        if (item.markets) {
+          item.markets.forEach(function(m) {
+            if (m.key === 'spread' || m.key === 'spreads') spreadData = m;
+            if (m.key === 'total' || m.key === 'totals') totalData = m;
+          });
+        }
+        // Some formats nest under consensus
+        if (item.spread) spreadData = item.spread;
+        if (item.total) totalData = item.total;
+
+        var entry = { away: awayName, home: homeName };
+
+        if (spreadData && spreadData.outcomes) {
+          spreadData.outcomes.forEach(function(o) {
+            var side = normTeam(o.name || o.team || '');
+            entry['spread_ticket_' + side] = o.ticketPercent || o.ticket_percent || null;
+            entry['spread_money_' + side] = o.moneyPercent || o.money_percent || null;
+          });
+        }
+        if (totalData && totalData.outcomes) {
+          totalData.outcomes.forEach(function(o) {
+            var side = (o.name || '').toLowerCase();
+            entry['total_ticket_' + side] = o.ticketPercent || o.ticket_percent || null;
+            entry['total_money_' + side] = o.moneyPercent || o.money_percent || null;
+          });
+        }
+
+        newCache[gameKey] = entry;
+      });
+
+      console.log('AN ' + league + ': ' + Object.keys(newCache).length + ' games with bet %');
+    } catch(err) {
+      console.log('AN fetch error ' + league + ': ' + err.message);
+    }
+  }
+
+  if (Object.keys(newCache).length > 0) anCache = newCache;
+}
+
+function normTeam(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Look up Action Network data for a game
+function getANData(awayTeam, homeTeam) {
+  var key = normTeam(awayTeam) + '__' + normTeam(homeTeam);
+  if (anCache[key]) return anCache[key];
+  // Try partial match — last word of team name
+  var awayLast = normTeam(awayTeam.split(' ').pop());
+  var homeLast = normTeam(homeTeam.split(' ').pop());
+  for (var k in anCache) {
+    var entry = anCache[k];
+    if (normTeam(entry.away || '').indexOf(awayLast) > -1 &&
+        normTeam(entry.home || '').indexOf(homeLast) > -1) return entry;
+  }
+  return null;
 }
 
 function getSportName(key) {
@@ -552,9 +662,37 @@ function detectMoves(games) {
         ts: now,
         // Display fields
         pct: Math.min(95, result.confidence * 6),
-        bfor: 0, // No ticket% from Odds API — never fabricate
+        bfor: 0,
         mfor: 0
       };
+
+      // Enrich with Action Network bet % data if available
+      var anData = getANData(game.away_team, game.home_team);
+      if (anData) {
+        var sharpNorm = normTeam(sharpSide);
+        if (betType === 'Spread') {
+          var ticketPct = anData['spread_ticket_' + sharpNorm] || null;
+          var moneyPct  = anData['spread_money_' + sharpNorm] || null;
+          signal.bfor = ticketPct !== null ? Math.round(ticketPct) : 0;
+          signal.mfor = moneyPct  !== null ? Math.round(moneyPct)  : 0;
+        } else {
+          var side = sharpSide.toLowerCase(); // 'over' or 'under'
+          signal.bfor = anData['total_ticket_' + side] !== null ? Math.round(anData['total_ticket_' + side] || 0) : 0;
+          signal.mfor = anData['total_money_'  + side] !== null ? Math.round(anData['total_money_'  + side] || 0) : 0;
+        }
+
+        // True RLM: public majority on opposite side but line moved toward sharpSide
+        var oppTicket = 100 - signal.bfor;
+        signal.isRLM = (oppTicket >= 55 && signal.bfor <= 45 && signal.bookCount >= 2);
+
+        // Sharp gap: money% >> ticket% = big money on this side
+        signal.sharpGap = signal.mfor - signal.bfor;
+        signal.hasBetData = true;
+      } else {
+        signal.isRLM = false;
+        signal.sharpGap = 0;
+        signal.hasBetData = false;
+      }
 
       if (!bestSignal || result.str > bestSignal.str) {
         bestSignal = signal;
@@ -575,6 +713,12 @@ function detectMoves(games) {
   }
   return found;
 }
+
+// Fetch Action Network data every 30 min (runs are slow, avoid hammering)
+cron.schedule('*/30 * * * *', async function() {
+  console.log('Fetching Action Network bet % data...');
+  await fetchActionNetwork();
+});
 
 cron.schedule('*/15 * * * *', async function() {
   console.log('Checking lines at ' + new Date().toLocaleTimeString());
