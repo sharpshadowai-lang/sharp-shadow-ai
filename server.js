@@ -242,7 +242,7 @@ async function fetchActionNetwork() {
         if (!mkt) return;
         var sides = mkt.sides || mkt.teams || [];
         if (!Array.isArray(sides)) return;
-        sides.forEach(function(t) {
+        sides.forEach(function(t, idx) {
           // Action Network actor field names: ticketPercent, moneyPercent
           var ticket = t.ticketPercent != null ? t.ticketPercent : (t.betsPercent != null ? t.betsPercent : null);
           var money  = t.moneyPercent  != null ? t.moneyPercent  : (t.money_percent != null ? t.money_percent : null);
@@ -250,8 +250,11 @@ async function fetchActionNetwork() {
           var tSide  = (t.name || t.side || t.label || t.displayName || '').toLowerCase().replace(/[^a-z]/g, '');
           var mkt2 = mktType.toLowerCase();
           if (mkt2 === 'spread' || mkt2 === 'spreads') {
-            if (ticket != null) entry['spread_ticket_' + tName] = ticket;
-            if (money  != null) entry['spread_money_'  + tName] = money;
+            // AN spread sides don't always have team names — store by position (idx=0=away, idx=1=home)
+            // AND by team name if available, for flexible lookup
+            var posKey = idx === 0 ? 'away' : 'home';
+            if (ticket != null) { entry['spread_ticket_' + posKey] = ticket; if (tName) entry['spread_ticket_' + tName] = ticket; }
+            if (money  != null) { entry['spread_money_'  + posKey] = money;  if (tName) entry['spread_money_'  + tName] = money; }
           } else if (mkt2 === 'total' || mkt2 === 'totals') {
             if (ticket != null) entry['total_ticket_' + tSide] = ticket;
             if (money  != null) entry['total_money_'  + tSide] = money;
@@ -686,8 +689,15 @@ function detectMoves(games) {
       if (anData) {
         var sharpNorm = normTeam(sharpSide);
         if (betType === 'Spread') {
-          var ticketPct = anData['spread_ticket_' + sharpNorm] || null;
-          var moneyPct  = anData['spread_money_' + sharpNorm] || null;
+          // Try by team name first, then by position (away/home)
+          var isAway = normTeam(game.away_team) === sharpNorm ||
+                       normTeam(game.away_team).indexOf(sharpNorm) > -1 ||
+                       sharpNorm.indexOf(normTeam(game.away_team.split(' ').pop())) > -1;
+          var posKey = isAway ? 'away' : 'home';
+          var ticketPct = anData['spread_ticket_' + sharpNorm] != null ? anData['spread_ticket_' + sharpNorm]
+                        : anData['spread_ticket_' + posKey] != null ? anData['spread_ticket_' + posKey] : null;
+          var moneyPct  = anData['spread_money_'  + sharpNorm] != null ? anData['spread_money_'  + sharpNorm]
+                        : anData['spread_money_'  + posKey]  != null ? anData['spread_money_'  + posKey]  : null;
           signal.bfor = ticketPct !== null ? Math.round(ticketPct) : 0;
           signal.mfor = moneyPct  !== null ? Math.round(moneyPct)  : 0;
         } else {
