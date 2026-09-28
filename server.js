@@ -253,7 +253,8 @@ async function fetchActionNetwork() {
 
         console.log('SBR ' + league.name + ': ' + count + ' games with bet %');
       } catch(e) {
-        console.log('SBR ' + league.name + ' error: ' + e.message);
+        // SBR blocked — inference fallback handles signal enrichment
+        if (e.response && e.response.status !== 404) console.log('SBR ' + league.name + ' error: ' + e.message);
       }
 
       await new Promise(function(r){ setTimeout(r, 300); });
