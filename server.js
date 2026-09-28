@@ -234,28 +234,41 @@ async function fetchActionNetwork() {
         var consensus = item.consensus || {};
         // Log consensus structure on first item for debugging
         if (Object.keys(newCache).length === 0 && !item.isComplete) {
-          console.log('AN consensus sample: ' + JSON.stringify(consensus).substring(0, 400));
+          console.log('AN consensus sample: ' + JSON.stringify(consensus).substring(0, 1200));
+          // Also log the first team object inside the first market to see exact field names
+          var firstMktKey = Object.keys(consensus)[0];
+          if (firstMktKey) {
+            var firstMkt = consensus[firstMktKey];
+            var firstTeams = firstMkt && (firstMkt.teams || firstMkt.sides || []);
+            if (firstTeams && firstTeams[0]) {
+              console.log('AN team obj keys: ' + Object.keys(firstTeams[0]).join(', '));
+              console.log('AN team obj: ' + JSON.stringify(firstTeams[0]));
+            }
+          }
         }
         var mktKeys = Object.keys(consensus);
         mktKeys.forEach(function(mktType) {
           var mkt = consensus[mktType];
           if (!mkt) return;
-          var teams = mkt.teams || mkt.sides || [];
+          // Action Network actor uses 'sides' array inside each market
+          var teams = mkt.sides || mkt.teams || [];
           if (!Array.isArray(teams)) return;
           teams.forEach(function(t) {
-            var ticket = t.betsPercent || t.bets_percent || t.ticketPercent || t.ticket_percent || null;
-            var money  = t.moneyPercent || t.money_percent || t.moneyBetsPercent || null;
-            var tName  = normTeam(t.name || t.team_name || t.displayName || '');
-            var tSide  = (t.name || t.side || t.label || '').toLowerCase();
+            // Actual field names from Action Network actor: ticketPercent, moneyPercent
+            var ticket = t.ticketPercent != null ? t.ticketPercent : (t.betsPercent != null ? t.betsPercent : null);
+            var money  = t.moneyPercent  != null ? t.moneyPercent  : (t.money_percent != null ? t.money_percent : null);
+            // Team name: try name, displayName, teamName; for totals use side/label
+            var tName  = normTeam(t.name || t.displayName || t.teamName || t.team_name || '');
+            var tSide  = (t.name || t.side || t.label || t.displayName || '').toLowerCase().replace(/[^a-z]/g, '');
             if (mktType === 'spread' || mktType === 'spreads') {
-              if (ticket !== null) entry['spread_ticket_' + tName] = ticket;
-              if (money  !== null) entry['spread_money_'  + tName] = money;
+              if (ticket != null) entry['spread_ticket_' + tName] = ticket;
+              if (money  != null) entry['spread_money_'  + tName] = money;
             } else if (mktType === 'total' || mktType === 'totals') {
-              if (ticket !== null) entry['total_ticket_' + tSide] = ticket;
-              if (money  !== null) entry['total_money_'  + tSide] = money;
+              if (ticket != null) entry['total_ticket_' + tSide] = ticket;
+              if (money  != null) entry['total_money_'  + tSide] = money;
             } else if (mktType === 'ml' || mktType === 'moneyline') {
-              if (ticket !== null) entry['ml_ticket_' + tName] = ticket;
-              if (money  !== null) entry['ml_money_'  + tName] = money;
+              if (ticket != null) entry['ml_ticket_' + tName] = ticket;
+              if (money  != null) entry['ml_money_'  + tName] = money;
             }
           });
         });
