@@ -768,6 +768,13 @@ cron.schedule('*/15 * * * *', async function() {
   }
 });
 
+// Manual trigger for Action Network fetch (admin use)
+app.get('/api/fetch-an', async function(req, res) {
+  console.log('Manual AN fetch triggered');
+  await fetchActionNetwork();
+  res.json({ ok: true, games: Object.keys(anCache).length, cache: anCache });
+});
+
 // SERVE THE APP
 app.get('/', function(req, res) {
   var appPath = path.join(__dirname, 'app.html');
