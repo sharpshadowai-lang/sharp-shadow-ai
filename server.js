@@ -171,11 +171,11 @@ async function fetchOdds() {
 // ===== ACTION NETWORK BET % — free direct API (no Apify) =====
 // Action Network exposes public consensus data at no cost
 var AN_LEAGUES = [
-  { sport: 'football', league: 'NFL' },
-  { sport: 'football', league: 'NCAAF' },
-  { sport: 'baseball', league: 'MLB' },
-  { sport: 'basketball', league: 'NBA' },
-  { sport: 'hockey', league: 'NHL' }
+  { sport: 'football', league: 'NFL', path: 'nfl' },
+  { sport: 'football', league: 'NCAAF', path: 'ncaaf' },
+  { sport: 'baseball', league: 'MLB', path: 'mlb' },
+  { sport: 'basketball', league: 'NBA', path: 'nba' },
+  { sport: 'hockey', league: 'NHL', path: 'nhl' }
 ];
 
 async function fetchActionNetwork() {
@@ -187,16 +187,21 @@ async function fetchActionNetwork() {
     for (var li = 0; li < AN_LEAGUES.length; li++) {
       var league = AN_LEAGUES[li];
       try {
-        var url = 'https://api.actionnetwork.com/web/v1/games?sport=' + league.sport + '&league=' + league.league + '&bookIds=15,30,76,123,69,68&include=consensus';
+        // Action Network scoreboard endpoint (lowercase league path, type=game)
+        var url = 'https://api.actionnetwork.com/web/v1/scoreboard/' + league.path + '?include=consensus%2Codds&period=game';
         var res = await axios.get(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json',
-            'Referer': 'https://www.actionnetwork.com/'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Origin': 'https://www.actionnetwork.com',
+            'Referer': 'https://www.actionnetwork.com/' + league.path
           },
           timeout: 15000
         });
 
+        // Log top-level keys so we can debug the response shape
+        console.log('AN ' + league.league + ' keys: ' + Object.keys(res.data || {}).join(', '));
         var games = (res.data && res.data.games) ? res.data.games : [];
         var count = 0;
 
