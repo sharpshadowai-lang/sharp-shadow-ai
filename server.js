@@ -126,17 +126,17 @@ let gamesCache = [];
 let lastUpdated = null;
 let anCache = {}; // Action Network bet % cache: keyed by normalized team name
 
+// Only fetch sports that have active seasons — saves Odds API quota
+// World Cup and NCAAB are off-season; add them back when live
 const SPORTS = [
-  'basketball_nba',
-  'baseball_mlb',
   'americanfootball_nfl',
+  'americanfootball_ncaaf',
+  'baseball_mlb',
+  'basketball_nba',
   'icehockey_nhl',
   'soccer_usa_mls',
   'soccer_epl',
-  'soccer_uefa_champs_league',
-  'soccer_fifa_world_cup',
-  'americanfootball_ncaaf',
-  'basketball_ncaab'
+  'soccer_uefa_champs_league'
 ];
 
 async function fetchOdds() {
@@ -173,113 +173,101 @@ async function fetchActionNetwork() {
   var apifyToken = process.env.APIFY_TOKEN;
   if (!apifyToken) { console.log('No APIFY_TOKEN set, skipping Action Network fetch'); return; }
 
-  var leagues = ['nfl', 'ncaaf', 'mlb', 'nba', 'nhl'];
+    // Run ONE Apify actor for all active leagues at once (saves Apify run credits)
+  var activeLeagues = ['nfl', 'ncaaf', 'mlb', 'nba', 'nhl'];
   var newCache = {};
 
-  for (var li = 0; li < leagues.length; li++) {
-    var league = leagues[li];
-    try {
-      // Start an Apify run for this league
-      var runRes = await axios.post(
-        'https://api.apify.com/v2/acts/zen-studio~action-network-odds/runs?token=' + apifyToken,
-        { leagues: [league] },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
+  try {
+    var runRes = await axios.post(
+      'https://api.apify.com/v2/acts/zen-studio~action-network-odds/runs?token=' + apifyToken,
+      { leagues: activeLeagues },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
+    );
+    var runId = runRes.data.data.id;
+
+    // Wait up to 90s for the run to finish (multi-league takes longer)
+    var finished = false;
+    for (var attempt = 0; attempt < 18; attempt++) {
+      await new Promise(function(r){ setTimeout(r, 5000); });
+      var statusRes = await axios.get(
+        'https://api.apify.com/v2/actor-runs/' + runId + '?token=' + apifyToken
       );
-      var runId = runRes.data.data.id;
+      var runStatus = statusRes.data.data.status;
+      if (runStatus === 'SUCCEEDED') { finished = true; break; }
+      if (runStatus === 'FAILED' || runStatus === 'ABORTED') { break; }
+    }
 
-      // Wait up to 60s for the run to finish
-      var finished = false;
-      for (var attempt = 0; attempt < 12; attempt++) {
-        await new Promise(function(r){ setTimeout(r, 5000); });
-        var statusRes = await axios.get(
-          'https://api.apify.com/v2/actor-runs/' + runId + '?token=' + apifyToken
-        );
-        var runStatus = statusRes.data.data.status;
-        if (runStatus === 'SUCCEEDED') { finished = true; break; }
-        if (runStatus === 'FAILED' || runStatus === 'ABORTED') { break; }
-      }
+    if (!finished) { console.log('AN run did not finish'); return; }
 
-      if (!finished) { console.log('AN run did not finish for ' + league); continue; }
+    // Fetch results
+    var dataRes = await axios.get(
+      'https://api.apify.com/v2/actor-runs/' + runId + '/dataset/items?token=' + apifyToken + '&limit=500'
+    );
+    var items = dataRes.data;
+    console.log('AN actor returned ' + items.length + ' items total');
 
-      // Fetch results
-      var dataRes = await axios.get(
-        'https://api.apify.com/v2/actor-runs/' + runId + '/dataset/items?token=' + apifyToken + '&limit=200'
-      );
-      var items = dataRes.data;
+    // On first successful run, log structure to verify field names
+    var logged = false;
 
-      // Debug: log first item to see actual structure
-      if (items.length > 0) {
-        console.log('AN ' + league + ' sample item keys: ' + Object.keys(items[0]).join(', '));
-        console.log('AN ' + league + ' sample: ' + JSON.stringify(items[0]).substring(0, 500));
-      } else {
-        console.log('AN ' + league + ': actor returned 0 items');
-      }
+    items.forEach(function(item) {
+      if (!item.awayTeam || !item.homeTeam) return;
+      // Skip completed games
+      if (item.isComplete || item.status === 'complete') return;
 
-      // Parse bet % data per game — Action Network format
-      // Team names: item.awayTeam.name / item.homeTeam.name
-      // Bet %: item.consensus array — each entry has type ('spread','total','ml') and teams array
-      items.forEach(function(item) {
-        if (!item.awayTeam || !item.homeTeam) return;
-        // Skip completed games
-        if (item.isComplete || item.status === 'complete') return;
+      var awayName = item.awayTeam.name || item.awayTeam.displayName || '';
+      var homeName = item.homeTeam.name || item.homeTeam.displayName || '';
+      if (!awayName && !homeName) return;
 
-        var awayName = item.awayTeam.name || item.awayTeam.displayName || '';
-        var homeName = item.homeTeam.name || item.homeTeam.displayName || '';
-        if (!awayName && !homeName) return;
+      var gameKey = normTeam(awayName) + '__' + normTeam(homeName);
+      var entry = { away: awayName, home: homeName };
 
-        var gameKey = normTeam(awayName) + '__' + normTeam(homeName);
-        var entry = { away: awayName, home: homeName };
+      // consensus is an OBJECT keyed by market type: {spread:{sides:[...]}, total:{sides:[...]}, moneyline:{sides:[...]}}
+      var consensus = item.consensus || {};
 
-        // consensus is an OBJECT keyed by market type e.g. {spread:{...}, total:{...}, ml:{...}}
-        var consensus = item.consensus || {};
-        // Log consensus structure on first item for debugging
-        if (Object.keys(newCache).length === 0 && !item.isComplete) {
-          console.log('AN consensus sample: ' + JSON.stringify(consensus).substring(0, 1200));
-          // Also log the first team object inside the first market to see exact field names
-          var firstMktKey = Object.keys(consensus)[0];
-          if (firstMktKey) {
-            var firstMkt = consensus[firstMktKey];
-            var firstTeams = firstMkt && (firstMkt.teams || firstMkt.sides || []);
-            if (firstTeams && firstTeams[0]) {
-              console.log('AN team obj keys: ' + Object.keys(firstTeams[0]).join(', '));
-              console.log('AN team obj: ' + JSON.stringify(firstTeams[0]));
-            }
+      // Log structure once to confirm field names
+      if (!logged) {
+        logged = true;
+        var firstMktKey = Object.keys(consensus)[0];
+        if (firstMktKey) {
+          var firstMkt = consensus[firstMktKey];
+          var firstSides = firstMkt && (firstMkt.sides || firstMkt.teams || []);
+          if (firstSides && firstSides[0]) {
+            console.log('AN team obj keys: ' + Object.keys(firstSides[0]).join(', '));
           }
         }
-        var mktKeys = Object.keys(consensus);
-        mktKeys.forEach(function(mktType) {
-          var mkt = consensus[mktType];
-          if (!mkt) return;
-          // Action Network actor uses 'sides' array inside each market
-          var teams = mkt.sides || mkt.teams || [];
-          if (!Array.isArray(teams)) return;
-          teams.forEach(function(t) {
-            // Actual field names from Action Network actor: ticketPercent, moneyPercent
-            var ticket = t.ticketPercent != null ? t.ticketPercent : (t.betsPercent != null ? t.betsPercent : null);
-            var money  = t.moneyPercent  != null ? t.moneyPercent  : (t.money_percent != null ? t.money_percent : null);
-            // Team name: try name, displayName, teamName; for totals use side/label
-            var tName  = normTeam(t.name || t.displayName || t.teamName || t.team_name || '');
-            var tSide  = (t.name || t.side || t.label || t.displayName || '').toLowerCase().replace(/[^a-z]/g, '');
-            if (mktType === 'spread' || mktType === 'spreads') {
-              if (ticket != null) entry['spread_ticket_' + tName] = ticket;
-              if (money  != null) entry['spread_money_'  + tName] = money;
-            } else if (mktType === 'total' || mktType === 'totals') {
-              if (ticket != null) entry['total_ticket_' + tSide] = ticket;
-              if (money  != null) entry['total_money_'  + tSide] = money;
-            } else if (mktType === 'ml' || mktType === 'moneyline') {
-              if (ticket != null) entry['ml_ticket_' + tName] = ticket;
-              if (money  != null) entry['ml_money_'  + tName] = money;
-            }
-          });
-        });
+      }
 
-        newCache[gameKey] = entry;
+      Object.keys(consensus).forEach(function(mktType) {
+        var mkt = consensus[mktType];
+        if (!mkt) return;
+        var sides = mkt.sides || mkt.teams || [];
+        if (!Array.isArray(sides)) return;
+        sides.forEach(function(t) {
+          // Action Network actor field names: ticketPercent, moneyPercent
+          var ticket = t.ticketPercent != null ? t.ticketPercent : (t.betsPercent != null ? t.betsPercent : null);
+          var money  = t.moneyPercent  != null ? t.moneyPercent  : (t.money_percent != null ? t.money_percent : null);
+          var tName  = normTeam(t.name || t.displayName || t.teamName || t.team_name || '');
+          var tSide  = (t.name || t.side || t.label || t.displayName || '').toLowerCase().replace(/[^a-z]/g, '');
+          var mkt2 = mktType.toLowerCase();
+          if (mkt2 === 'spread' || mkt2 === 'spreads') {
+            if (ticket != null) entry['spread_ticket_' + tName] = ticket;
+            if (money  != null) entry['spread_money_'  + tName] = money;
+          } else if (mkt2 === 'total' || mkt2 === 'totals') {
+            if (ticket != null) entry['total_ticket_' + tSide] = ticket;
+            if (money  != null) entry['total_money_'  + tSide] = money;
+          } else if (mkt2 === 'ml' || mkt2 === 'moneyline') {
+            if (ticket != null) entry['ml_ticket_' + tName] = ticket;
+            if (money  != null) entry['ml_money_'  + tName] = money;
+          }
+        });
       });
 
-      console.log('AN ' + league + ': ' + Object.keys(newCache).length + ' games with bet %');
-    } catch(err) {
-      console.log('AN fetch error ' + league + ': ' + err.message);
-    }
+      newCache[gameKey] = entry;
+    });
+
+    console.log('AN parsed ' + Object.keys(newCache).length + ' upcoming games with bet %');
+  } catch(err) {
+    console.log('AN fetch error: ' + err.message);
   }
 
   if (Object.keys(newCache).length > 0) anCache = newCache;
@@ -944,12 +932,17 @@ app.post('/api/edge', async function(req, res) {
 
   console.log('SIDE AI CALLED: ' + userId + ' plan=' + plan + ' call=' + (rateCheck.used+1) + '/' + rateCheck.limit);
   try {
+    var requestedModel = req.body.model || 'claude-haiku-4-5-20251001';
+    // Only attach web_search to sonnet calls (picks/chat) — haiku (parlay) doesn't need it and it costs extra
+    var toolsPayload = requestedModel.indexOf('sonnet') > -1
+      ? [{ type: 'web_search_20250305', name: 'web_search' }]
+      : [];
     var response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: req.body.model || 'claude-haiku-4-5-20251001',
+      model: requestedModel,
       max_tokens: req.body.max_tokens || 1000,
       system: req.body.system || '',
       messages: req.body.messages || [],
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+      ...(toolsPayload.length > 0 ? { tools: toolsPayload } : {})
     }, {
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
