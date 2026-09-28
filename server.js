@@ -230,22 +230,32 @@ async function fetchActionNetwork() {
         var gameKey = normTeam(awayName) + '__' + normTeam(homeName);
         var entry = { away: awayName, home: homeName };
 
-        // consensus is an array of market objects
-        var consensus = item.consensus || [];
-        consensus.forEach(function(mkt) {
-          var mktType = (mkt.type || mkt.market_type || '').toLowerCase();
-          var teams = mkt.teams || [];
+        // consensus is an OBJECT keyed by market type e.g. {spread:{...}, total:{...}, ml:{...}}
+        var consensus = item.consensus || {};
+        // Log consensus structure on first item for debugging
+        if (Object.keys(newCache).length === 0 && !item.isComplete) {
+          console.log('AN consensus sample: ' + JSON.stringify(consensus).substring(0, 400));
+        }
+        var mktKeys = Object.keys(consensus);
+        mktKeys.forEach(function(mktType) {
+          var mkt = consensus[mktType];
+          if (!mkt) return;
+          var teams = mkt.teams || mkt.sides || [];
+          if (!Array.isArray(teams)) return;
           teams.forEach(function(t) {
-            var teamName = normTeam(t.name || t.team_name || '');
             var ticket = t.betsPercent || t.bets_percent || t.ticketPercent || t.ticket_percent || null;
             var money  = t.moneyPercent || t.money_percent || t.moneyBetsPercent || null;
+            var tName  = normTeam(t.name || t.team_name || t.displayName || '');
+            var tSide  = (t.name || t.side || t.label || '').toLowerCase();
             if (mktType === 'spread' || mktType === 'spreads') {
-              if (ticket !== null) entry['spread_ticket_' + teamName] = ticket;
-              if (money  !== null) entry['spread_money_'  + teamName] = money;
+              if (ticket !== null) entry['spread_ticket_' + tName] = ticket;
+              if (money  !== null) entry['spread_money_'  + tName] = money;
             } else if (mktType === 'total' || mktType === 'totals') {
-              var side = (t.name || t.side || '').toLowerCase(); // 'over' or 'under'
-              if (ticket !== null) entry['total_ticket_' + side] = ticket;
-              if (money  !== null) entry['total_money_'  + side] = money;
+              if (ticket !== null) entry['total_ticket_' + tSide] = ticket;
+              if (money  !== null) entry['total_money_'  + tSide] = money;
+            } else if (mktType === 'ml' || mktType === 'moneyline') {
+              if (ticket !== null) entry['ml_ticket_' + tName] = ticket;
+              if (money  !== null) entry['ml_money_'  + tName] = money;
             }
           });
         });
