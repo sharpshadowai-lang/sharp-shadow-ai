@@ -171,11 +171,11 @@ async function fetchOdds() {
 // ===== ACTION NETWORK BET % — free direct API (no Apify) =====
 // Action Network exposes public consensus data at no cost
 var AN_LEAGUES = [
-  { id: 'football', sport: 'nfl' },
-  { id: 'football', sport: 'ncaaf' },
-  { id: 'baseball', sport: 'mlb' },
-  { id: 'basketball', sport: 'nba' },
-  { id: 'hockey', sport: 'nhl' }
+  { sport: 'football', league: 'NFL' },
+  { sport: 'football', league: 'NCAAF' },
+  { sport: 'baseball', league: 'MLB' },
+  { sport: 'basketball', league: 'NBA' },
+  { sport: 'hockey', league: 'NHL' }
 ];
 
 async function fetchActionNetwork() {
@@ -187,11 +187,12 @@ async function fetchActionNetwork() {
     for (var li = 0; li < AN_LEAGUES.length; li++) {
       var league = AN_LEAGUES[li];
       try {
-        var url = 'https://api.actionnetwork.com/web/v1/games?sport=' + league.sport + '&bookIds=15,30,76,123,69,68&include=odds';
+        var url = 'https://api.actionnetwork.com/web/v1/games?sport=' + league.sport + '&league=' + league.league + '&bookIds=15,30,76,123,69,68&include=consensus';
         var res = await axios.get(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Referer': 'https://www.actionnetwork.com/'
           },
           timeout: 15000
         });
@@ -259,9 +260,9 @@ async function fetchActionNetwork() {
           count++;
         });
 
-        console.log('AN ' + league.sport + ': ' + count + ' games with bet %');
+        console.log('AN ' + league.league + ': ' + count + ' games with bet %');
       } catch(e) {
-        console.log('AN ' + league.sport + ' error: ' + e.message);
+        console.log('AN ' + league.league + ' error: ' + e.message);
       }
 
       // Small delay between league requests
