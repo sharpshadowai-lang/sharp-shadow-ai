@@ -215,44 +215,40 @@ async function fetchActionNetwork() {
         console.log('AN ' + league + ': actor returned 0 items');
       }
 
-      // Parse bet % data per game
+      // Parse bet % data per game — Action Network format
+      // Team names: item.awayTeam.name / item.homeTeam.name
+      // Bet %: item.consensus array — each entry has type ('spread','total','ml') and teams array
       items.forEach(function(item) {
-        if (!item.away_team && !item.home_team && !item.teams) return;
-        // Try to extract team names and bet %
-        var awayName = item.away_team || (item.teams && item.teams[0] && item.teams[0].full_name) || '';
-        var homeName = item.home_team || (item.teams && item.teams[1] && item.teams[1].full_name) || '';
+        if (!item.awayTeam || !item.homeTeam) return;
+        // Skip completed games
+        if (item.isComplete || item.status === 'complete') return;
+
+        var awayName = item.awayTeam.name || item.awayTeam.displayName || '';
+        var homeName = item.homeTeam.name || item.homeTeam.displayName || '';
         if (!awayName && !homeName) return;
 
         var gameKey = normTeam(awayName) + '__' + normTeam(homeName);
-
-        // Extract spread and total bet %
-        var spreadData = null, totalData = null;
-        if (item.markets) {
-          item.markets.forEach(function(m) {
-            if (m.key === 'spread' || m.key === 'spreads') spreadData = m;
-            if (m.key === 'total' || m.key === 'totals') totalData = m;
-          });
-        }
-        // Some formats nest under consensus
-        if (item.spread) spreadData = item.spread;
-        if (item.total) totalData = item.total;
-
         var entry = { away: awayName, home: homeName };
 
-        if (spreadData && spreadData.outcomes) {
-          spreadData.outcomes.forEach(function(o) {
-            var side = normTeam(o.name || o.team || '');
-            entry['spread_ticket_' + side] = o.ticketPercent || o.ticket_percent || null;
-            entry['spread_money_' + side] = o.moneyPercent || o.money_percent || null;
+        // consensus is an array of market objects
+        var consensus = item.consensus || [];
+        consensus.forEach(function(mkt) {
+          var mktType = (mkt.type || mkt.market_type || '').toLowerCase();
+          var teams = mkt.teams || [];
+          teams.forEach(function(t) {
+            var teamName = normTeam(t.name || t.team_name || '');
+            var ticket = t.betsPercent || t.bets_percent || t.ticketPercent || t.ticket_percent || null;
+            var money  = t.moneyPercent || t.money_percent || t.moneyBetsPercent || null;
+            if (mktType === 'spread' || mktType === 'spreads') {
+              if (ticket !== null) entry['spread_ticket_' + teamName] = ticket;
+              if (money  !== null) entry['spread_money_'  + teamName] = money;
+            } else if (mktType === 'total' || mktType === 'totals') {
+              var side = (t.name || t.side || '').toLowerCase(); // 'over' or 'under'
+              if (ticket !== null) entry['total_ticket_' + side] = ticket;
+              if (money  !== null) entry['total_money_'  + side] = money;
+            }
           });
-        }
-        if (totalData && totalData.outcomes) {
-          totalData.outcomes.forEach(function(o) {
-            var side = (o.name || '').toLowerCase();
-            entry['total_ticket_' + side] = o.ticketPercent || o.ticket_percent || null;
-            entry['total_money_' + side] = o.moneyPercent || o.money_percent || null;
-          });
-        }
+        });
 
         newCache[gameKey] = entry;
       });
