@@ -168,117 +168,111 @@ async function fetchOdds() {
   return all;
 }
 
-// ===== ACTION NETWORK BET % via Apify =====
-async function fetchActionNetwork() {
-  var apifyToken = process.env.APIFY_TOKEN;
-  if (!apifyToken) { console.log('No APIFY_TOKEN set, skipping Action Network fetch'); return; }
+// ===== ACTION NETWORK BET % — free direct API (no Apify) =====
+// Action Network exposes public consensus data at no cost
+var AN_LEAGUES = [
+  { id: 'football', sport: 'nfl' },
+  { id: 'football', sport: 'ncaaf' },
+  { id: 'baseball', sport: 'mlb' },
+  { id: 'basketball', sport: 'nba' },
+  { id: 'hockey', sport: 'nhl' }
+];
 
-    // Run ONE Apify actor for all active leagues at once (saves Apify run credits)
-  var activeLeagues = ['nfl', 'ncaaf', 'mlb', 'nba', 'nhl'];
+async function fetchActionNetwork() {
   var newCache = {};
+  var now = Date.now();
+  var sevenDays = 7 * 24 * 60 * 60 * 1000;
 
   try {
-    var runRes = await axios.post(
-      'https://api.apify.com/v2/acts/zen-studio~action-network-odds/runs?token=' + apifyToken,
-      { leagues: activeLeagues },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
-    );
-    var runId = runRes.data.data.id;
+    for (var li = 0; li < AN_LEAGUES.length; li++) {
+      var league = AN_LEAGUES[li];
+      try {
+        var url = 'https://api.actionnetwork.com/web/v1/games?sport=' + league.sport + '&bookIds=15,30,76,123,69,68&include=odds';
+        var res = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json'
+          },
+          timeout: 15000
+        });
 
-    // Wait up to 90s for the run to finish (multi-league takes longer)
-    var finished = false;
-    for (var attempt = 0; attempt < 18; attempt++) {
-      await new Promise(function(r){ setTimeout(r, 5000); });
-      var statusRes = await axios.get(
-        'https://api.apify.com/v2/actor-runs/' + runId + '?token=' + apifyToken
-      );
-      var runStatus = statusRes.data.data.status;
-      if (runStatus === 'SUCCEEDED') { finished = true; break; }
-      if (runStatus === 'FAILED' || runStatus === 'ABORTED') { break; }
-    }
+        var games = (res.data && res.data.games) ? res.data.games : [];
+        var count = 0;
 
-    if (!finished) { console.log('AN run did not finish'); return; }
+        games.forEach(function(g) {
+          // Only pregame within 7 days
+          if (!g.start_time) return;
+          var gameTs = new Date(g.start_time).getTime();
+          if (gameTs <= now) return;              // already started
+          if (gameTs > now + sevenDays) return;   // more than 7 days out
 
-    // Fetch results
-    var dataRes = await axios.get(
-      'https://api.apify.com/v2/actor-runs/' + runId + '/dataset/items?token=' + apifyToken + '&limit=500'
-    );
-    var items = dataRes.data;
-    console.log('AN actor returned ' + items.length + ' items total');
+          var away = g.away_team && (g.away_team.full_name || g.away_team.name || '');
+          var home = g.home_team && (g.home_team.full_name || g.home_team.name || '');
+          if (!away || !home) return;
 
-    // On first successful run, log structure to verify field names
-    var logged = false;
+          var gameKey = normTeam(away) + '__' + normTeam(home);
+          var entry = { away: away, home: home };
 
-    items.forEach(function(item) {
-      // Skip completed games
-      if (item.isComplete || item.status === 'complete') return;
+          // consensus object: {spread: {away: {percent, money_percent}, home: {...}}, total: {over: {...}, under: {...}}}
+          var consensus = g.consensus || {};
 
-      // Support multiple possible field name formats from the actor
-      var awayObj = item.awayTeam || item.away_team || (item.teams && item.teams[0]) || {};
-      var homeObj = item.homeTeam || item.home_team || (item.teams && item.teams[1]) || {};
-      var awayName = (typeof awayObj === 'string' ? awayObj : (awayObj.name || awayObj.displayName || awayObj.fullName || ''))
-                  || item.awayTeamName || item.away || '';
-      var homeName = (typeof homeObj === 'string' ? homeObj : (homeObj.name || homeObj.displayName || homeObj.fullName || ''))
-                  || item.homeTeamName || item.home || '';
-      if (!awayName || !homeName) { console.log('AN skip item - no team names, keys: ' + Object.keys(item).join(',')); return; }
-      if (!awayName && !homeName) return;
-
-      var gameKey = normTeam(awayName) + '__' + normTeam(homeName);
-      var entry = { away: awayName, home: homeName };
-
-      // consensus is an OBJECT keyed by market type: {spread:{sides:[...]}, total:{sides:[...]}, moneyline:{sides:[...]}}
-      var consensus = item.consensus || {};
-
-      // Log structure once to confirm field names
-      if (!logged) {
-        logged = true;
-        var firstMktKey = Object.keys(consensus)[0];
-        if (firstMktKey) {
-          var firstMkt = consensus[firstMktKey];
-          var firstSides = firstMkt && (firstMkt.sides || firstMkt.teams || []);
-          if (firstSides && firstSides[0]) {
-            console.log('AN team obj keys: ' + Object.keys(firstSides[0]).join(', '));
+          // Spread
+          if (consensus.spread) {
+            var sp = consensus.spread;
+            if (sp.away) {
+              if (sp.away.percent    != null) entry['spread_ticket_away'] = sp.away.percent;
+              if (sp.away.money_percent != null) entry['spread_money_away']  = sp.away.money_percent;
+            }
+            if (sp.home) {
+              if (sp.home.percent    != null) entry['spread_ticket_home'] = sp.home.percent;
+              if (sp.home.money_percent != null) entry['spread_money_home']  = sp.home.money_percent;
+            }
           }
-        }
+          // Total
+          if (consensus.total) {
+            var tot = consensus.total;
+            if (tot.over) {
+              if (tot.over.percent     != null) entry['total_ticket_over']  = tot.over.percent;
+              if (tot.over.money_percent != null) entry['total_money_over']   = tot.over.money_percent;
+            }
+            if (tot.under) {
+              if (tot.under.percent    != null) entry['total_ticket_under'] = tot.under.percent;
+              if (tot.under.money_percent != null) entry['total_money_under']  = tot.under.money_percent;
+            }
+          }
+          // Moneyline
+          if (consensus.moneyline) {
+            var ml = consensus.moneyline;
+            var awayNorm = normTeam(away);
+            var homeNorm = normTeam(home);
+            if (ml.away) {
+              if (ml.away.percent     != null) entry['ml_ticket_' + awayNorm] = ml.away.percent;
+              if (ml.away.money_percent != null) entry['ml_money_'  + awayNorm] = ml.away.money_percent;
+            }
+            if (ml.home) {
+              if (ml.home.percent     != null) entry['ml_ticket_' + homeNorm] = ml.home.percent;
+              if (ml.home.money_percent != null) entry['ml_money_'  + homeNorm] = ml.home.money_percent;
+            }
+          }
+
+          newCache[gameKey] = entry;
+          count++;
+        });
+
+        console.log('AN ' + league.sport + ': ' + count + ' games with bet %');
+      } catch(e) {
+        console.log('AN ' + league.sport + ' error: ' + e.message);
       }
 
-      Object.keys(consensus).forEach(function(mktType) {
-        var mkt = consensus[mktType];
-        if (!mkt) return;
-        var sides = mkt.sides || mkt.teams || [];
-        if (!Array.isArray(sides)) return;
-        sides.forEach(function(t, idx) {
-          // Action Network actor field names: ticketPercent, moneyPercent
-          var ticket = t.ticketPercent != null ? t.ticketPercent : (t.betsPercent != null ? t.betsPercent : null);
-          var money  = t.moneyPercent  != null ? t.moneyPercent  : (t.money_percent != null ? t.money_percent : null);
-          var tName  = normTeam(t.name || t.displayName || t.teamName || t.team_name || '');
-          var tSide  = (t.name || t.side || t.label || t.displayName || '').toLowerCase().replace(/[^a-z]/g, '');
-          var mkt2 = mktType.toLowerCase();
-          if (mkt2 === 'spread' || mkt2 === 'spreads') {
-            // AN spread sides don't always have team names — store by position (idx=0=away, idx=1=home)
-            // AND by team name if available, for flexible lookup
-            var posKey = idx === 0 ? 'away' : 'home';
-            if (ticket != null) { entry['spread_ticket_' + posKey] = ticket; if (tName) entry['spread_ticket_' + tName] = ticket; }
-            if (money  != null) { entry['spread_money_'  + posKey] = money;  if (tName) entry['spread_money_'  + tName] = money; }
-          } else if (mkt2 === 'total' || mkt2 === 'totals') {
-            if (ticket != null) entry['total_ticket_' + tSide] = ticket;
-            if (money  != null) entry['total_money_'  + tSide] = money;
-          } else if (mkt2 === 'ml' || mkt2 === 'moneyline') {
-            if (ticket != null) entry['ml_ticket_' + tName] = ticket;
-            if (money  != null) entry['ml_money_'  + tName] = money;
-          }
-        });
-      });
+      // Small delay between league requests
+      await new Promise(function(r){ setTimeout(r, 500); });
+    }
 
-      newCache[gameKey] = entry;
-    });
-
-    console.log('AN parsed ' + Object.keys(newCache).length + ' upcoming games with bet %');
+    console.log('AN total: ' + Object.keys(newCache).length + ' games cached');
+    if (Object.keys(newCache).length > 0) anCache = newCache;
   } catch(err) {
     console.log('AN fetch error: ' + err.message);
   }
-
-  if (Object.keys(newCache).length > 0) anCache = newCache;
 }
 
 function normTeam(name) {
@@ -528,8 +522,10 @@ function detectMoves(games) {
     var sport = getSportName(game.sportKey);
     if (!game.bookmakers) continue;
 
-    // Skip games that have already started (commence_time in the past)
-    if (game.commence_time && new Date(game.commence_time).getTime() <= now) continue;
+    // Only show pregame signals within 7 days — no live games, no distant futures
+    var gameTs = game.commence_time ? new Date(game.commence_time).getTime() : 0;
+    if (gameTs && gameTs <= now) continue;                          // game started
+    if (gameTs && gameTs > now + 7 * 24 * 60 * 60 * 1000) continue; // more than 7 days out
 
     // Aggregate movement per market across all books
     var marketData = {};
@@ -694,33 +690,59 @@ function detectMoves(games) {
       if (anData) {
         var sharpNorm = normTeam(sharpSide);
         if (betType === 'Spread') {
-          // Try by team name first, then by position (away/home)
           var isAway = normTeam(game.away_team) === sharpNorm ||
                        normTeam(game.away_team).indexOf(sharpNorm) > -1 ||
                        sharpNorm.indexOf(normTeam(game.away_team.split(' ').pop())) > -1;
           var posKey = isAway ? 'away' : 'home';
+          var oppPosKey = isAway ? 'home' : 'away';
           var ticketPct = anData['spread_ticket_' + sharpNorm] != null ? anData['spread_ticket_' + sharpNorm]
                         : anData['spread_ticket_' + posKey] != null ? anData['spread_ticket_' + posKey] : null;
-          var moneyPct  = anData['spread_money_'  + sharpNorm] != null ? anData['spread_money_'  + sharpNorm]
-                        : anData['spread_money_'  + posKey]  != null ? anData['spread_money_'  + posKey]  : null;
+          var moneyPct  = anData['spread_money_' + sharpNorm] != null ? anData['spread_money_' + sharpNorm]
+                        : anData['spread_money_' + posKey] != null ? anData['spread_money_' + posKey] : null;
           signal.bfor = ticketPct !== null ? Math.round(ticketPct) : 0;
           signal.mfor = moneyPct  !== null ? Math.round(moneyPct)  : 0;
+          // Public % on the OTHER side (for RLM display)
+          signal.bAgainst = anData['spread_ticket_' + oppPosKey] != null ? Math.round(anData['spread_ticket_' + oppPosKey]) : (100 - signal.bfor);
+          signal.mAgainst = anData['spread_money_'  + oppPosKey] != null ? Math.round(anData['spread_money_'  + oppPosKey]) : (100 - signal.mfor);
         } else {
           var side = sharpSide.toLowerCase(); // 'over' or 'under'
-          signal.bfor = anData['total_ticket_' + side] !== null ? Math.round(anData['total_ticket_' + side] || 0) : 0;
-          signal.mfor = anData['total_money_'  + side] !== null ? Math.round(anData['total_money_'  + side] || 0) : 0;
+          var oppSide = side === 'over' ? 'under' : 'over';
+          signal.bfor = anData['total_ticket_' + side] != null ? Math.round(anData['total_ticket_' + side]) : 0;
+          signal.mfor = anData['total_money_'  + side] != null ? Math.round(anData['total_money_'  + side]) : 0;
+          signal.bAgainst = anData['total_ticket_' + oppSide] != null ? Math.round(anData['total_ticket_' + oppSide]) : (100 - signal.bfor);
+          signal.mAgainst = anData['total_money_'  + oppSide] != null ? Math.round(anData['total_money_'  + oppSide]) : (100 - signal.mfor);
         }
 
-        // True RLM: public majority on opposite side but line moved toward sharpSide
-        var oppTicket = 100 - signal.bfor;
-        signal.isRLM = (oppTicket >= 55 && signal.bfor <= 45 && signal.bookCount >= 2);
-
-        // Sharp gap: money% >> ticket% = big money on this side
+        // Sharp gap: money% >> ticket% on sharp side = professional money
         signal.sharpGap = signal.mfor - signal.bfor;
+
+        // TRUE RLM: public majority AGAINST sharp side, but line moved FOR sharp side
+        // e.g. 70% of tickets on home team, but line moved to favor away = sharp money on away
+        signal.isRLM = (signal.bfor <= 45 && signal.bAgainst >= 55 && signal.bookCount >= 2);
+
+        // Sharp money confirmed: money % much higher than ticket % on same side
+        signal.isSharpMoney = (signal.sharpGap >= 15);
+
+        // Build explanation strings for UI
+        signal.rlmReason = signal.isRLM
+          ? Math.round(signal.bAgainst) + '% of public bets on ' + (betType === 'Spread' ? (netDir < 0 ? game.home_team : game.away_team) : (sharpSide === 'OVER' ? 'Under' : 'Over'))
+            + ', yet line moved ' + Math.abs(md.maxMovement) + ' pts toward ' + sharpSide.split(' ')[0]
+            + ' — sharp money overriding public consensus'
+          : '';
+        signal.sharpMoneyReason = signal.isSharpMoney
+          ? 'Only ' + signal.bfor + '% of bets but ' + signal.mfor + '% of money on ' + sharpSide.split(' ')[0]
+            + ' (+' + signal.sharpGap + '% gap) — large wagers from sharps'
+          : '';
+
         signal.hasBetData = true;
       } else {
         signal.isRLM = false;
+        signal.isSharpMoney = false;
         signal.sharpGap = 0;
+        signal.bAgainst = 0;
+        signal.mAgainst = 0;
+        signal.rlmReason = '';
+        signal.sharpMoneyReason = '';
         signal.hasBetData = false;
       }
 
@@ -784,8 +806,11 @@ cron.schedule('*/15 * * * *', async function() {
   }
 });
 
-// Manual trigger for Action Network fetch (admin use)
+// Manual trigger for Action Network fetch (admin only — requires secret key)
 app.get('/api/fetch-an', async function(req, res) {
+  if (req.query.key !== (process.env.ADMIN_KEY || 'sharpshadow_admin')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   console.log('Manual AN fetch triggered');
   await fetchActionNetwork();
   res.json({ ok: true, games: Object.keys(anCache).length, cache: anCache });
