@@ -1160,13 +1160,18 @@ function renderSignals(){
         '<span style="color:' + (s.str>=6?'#00ff88':s.str>=5?'#00e5ff':s.str>=3?'#ffd700':'var(--muted)') + '">' + (s.sharpLabel||'NO SHARP EVIDENCE') + '</span>' +
       '</div>' +
       (s.hasBetData ? (
-        '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:4px 0 6px;padding:6px 8px;background:rgba(0,0,0,.3);border-left:2px solid ' + (s.isRLM ? 'var(--purple)' : s.sharpGap >= 15 ? 'var(--cyan)' : 'var(--muted2)') + '">' +
-          (s.isRLM ? '<div style="color:var(--purple);font-weight:700;margin-bottom:3px">🔁 REVERSE LINE MOVEMENT</div>' : '') +
-          (s.sharpGap >= 15 ? '<div style="color:var(--cyan);font-weight:700;margin-bottom:3px">💰 SHARP MONEY DETECTED</div>' : '') +
-          '<div style="display:flex;gap:12px;color:var(--muted)">' +
-            '<span>BETS: <span style="color:' + (s.bfor <= 45 ? 'var(--green)' : 'var(--red)') + '">' + s.bfor + '%</span> on ' + s.bet.split(' ')[0] + '</span>' +
-            '<span>MONEY: <span style="color:' + (s.mfor >= 55 ? 'var(--cyan)' : 'var(--muted)') + '">' + s.mfor + '%</span></span>' +
-            (s.sharpGap ? '<span style="color:var(--muted)">GAP: <span style="color:' + (s.sharpGap >= 15 ? 'var(--green)' : s.sharpGap <= -15 ? 'var(--red)' : 'var(--muted)') + '">' + (s.sharpGap > 0 ? '+' : '') + s.sharpGap + '%</span></span>' : '') +
+        '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:4px 0 6px;padding:7px 10px;background:rgba(0,0,0,.35);border-left:3px solid ' + (s.isRLM ? 'var(--purple)' : s.isSharpMoney ? 'var(--cyan)' : 'var(--muted2)') + '">' +
+          // RLM badge + reason
+          (s.isRLM ? '<div style="color:var(--purple);font-weight:700;margin-bottom:4px;font-size:11px">🔁 REVERSE LINE MOVEMENT</div>' +
+            '<div style="color:var(--muted);margin-bottom:5px;line-height:1.4">' + (s.rlmReason||'') + '</div>' : '') +
+          // Sharp money badge + reason
+          (s.isSharpMoney ? '<div style="color:var(--cyan);font-weight:700;margin-bottom:4px;font-size:11px">💰 SHARP MONEY DETECTED</div>' +
+            '<div style="color:var(--muted);margin-bottom:5px;line-height:1.4">' + (s.sharpMoneyReason||'') + '</div>' : '') +
+          // Always show the numbers
+          '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:2px">' +
+            '<span style="color:var(--muted)">PUBLIC BETS: <span style="color:' + (s.bfor <= 40 ? 'var(--green)' : s.bfor >= 60 ? 'var(--red)' : 'var(--yellow)') + ';font-weight:700">' + s.bfor + '%</span></span>' +
+            '<span style="color:var(--muted)">PUBLIC MONEY: <span style="color:' + (s.mfor <= 40 ? 'var(--green)' : s.mfor >= 60 ? 'var(--red)' : 'var(--yellow)') + ';font-weight:700">' + s.mfor + '%</span></span>' +
+            (s.sharpGap !== 0 ? '<span style="color:var(--muted)">GAP: <span style="color:' + (s.sharpGap >= 15 ? 'var(--cyan)' : s.sharpGap <= -15 ? 'var(--red)' : 'var(--muted)') + ';font-weight:700">' + (s.sharpGap > 0 ? '+' : '') + s.sharpGap + '%</span></span>' : '') +
           '</div>' +
         '</div>'
       ) : '') +
