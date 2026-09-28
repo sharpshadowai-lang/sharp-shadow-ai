@@ -786,6 +786,35 @@ app.get('/api/fetch-an', async function(req, res) {
   res.json({ ok: true, games: Object.keys(anCache).length, cache: anCache });
 });
 
+// Debug: fetch raw Apify data to inspect structure
+app.get('/api/fetch-an-raw', async function(req, res) {
+  var apifyToken = process.env.APIFY_TOKEN;
+  if (!apifyToken) return res.json({ error: 'No APIFY_TOKEN' });
+  try {
+    var runRes = await axios.post(
+      'https://api.apify.com/v2/acts/zen-studio~action-network-odds/runs?token=' + apifyToken,
+      { leagues: ['nfl'] },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
+    );
+    var runId = runRes.data.data.id;
+    for (var i = 0; i < 18; i++) {
+      await new Promise(function(r){ setTimeout(r, 5000); });
+      var s = await axios.get('https://api.apify.com/v2/actor-runs/' + runId + '?token=' + apifyToken);
+      if (s.data.data.status === 'SUCCEEDED') break;
+      if (s.data.data.status === 'FAILED' || s.data.data.status === 'ABORTED') {
+        return res.json({ error: 'Run failed', status: s.data.data.status });
+      }
+    }
+    var dataRes = await axios.get(
+      'https://api.apify.com/v2/actor-runs/' + runId + '/dataset/items?token=' + apifyToken + '&limit=2'
+    );
+    // Return first 2 items raw so we can see exact field names
+    res.json({ count: dataRes.data.length, sample: dataRes.data.slice(0, 2) });
+  } catch(err) {
+    res.json({ error: err.message });
+  }
+});
+
 // SERVE THE APP
 app.get('/', function(req, res) {
   var appPath = path.join(__dirname, 'app.html');
