@@ -170,12 +170,13 @@ async function fetchOdds() {
 
 // ===== ACTION NETWORK BET % — free direct API (no Apify) =====
 // Action Network exposes public consensus data at no cost
-var AN_LEAGUES = [
-  { sport: 'football', league: 'NFL', path: 'nfl' },
-  { sport: 'football', league: 'NCAAF', path: 'ncaaf' },
-  { sport: 'baseball', league: 'MLB', path: 'mlb' },
-  { sport: 'basketball', league: 'NBA', path: 'nba' },
-  { sport: 'hockey', league: 'NHL', path: 'nhl' }
+// SBR league IDs for public consensus API
+var SBR_LEAGUES = [
+  { name: 'NFL',   id: 4 },
+  { name: 'NCAAF', id: 20 },
+  { name: 'MLB',   id: 3 },
+  { name: 'NBA',   id: 2 },
+  { name: 'NHL',   id: 6 }
 ];
 
 async function fetchActionNetwork() {
@@ -183,101 +184,85 @@ async function fetchActionNetwork() {
   var now = Date.now();
   var sevenDays = 7 * 24 * 60 * 60 * 1000;
 
+  // Use SBR (SportsbookReview) free public consensus API
   try {
-    for (var li = 0; li < AN_LEAGUES.length; li++) {
-      var league = AN_LEAGUES[li];
+    for (var li = 0; li < SBR_LEAGUES.length; li++) {
+      var league = SBR_LEAGUES[li];
       try {
-        // Action Network scoreboard endpoint (lowercase league path, type=game)
-        var url = 'https://api.actionnetwork.com/web/v1/scoreboard/' + league.path + '?include=consensus%2Codds&period=game';
+        // SBR public consensus endpoint
+        var url = 'https://www.sportsbookreview.com/ms-odds-v2/odds-v2-service?method=getConsensusData&sport=' + league.id;
         var res = await axios.get(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Origin': 'https://www.actionnetwork.com',
-            'Referer': 'https://www.actionnetwork.com/' + league.path
+            'Referer': 'https://www.sportsbookreview.com/'
           },
           timeout: 15000
         });
 
-        // Log top-level keys so we can debug the response shape
-        console.log('AN ' + league.league + ' keys: ' + Object.keys(res.data || {}).join(', '));
-        var games = (res.data && res.data.games) ? res.data.games : [];
+        var data = res.data || {};
+        var events = data.events || data.data || [];
+        if (!Array.isArray(events)) events = Object.values(events);
         var count = 0;
 
-        games.forEach(function(g) {
-          // Only pregame within 7 days
-          if (!g.start_time) return;
-          var gameTs = new Date(g.start_time).getTime();
-          if (gameTs <= now) return;              // already started
-          if (gameTs > now + sevenDays) return;   // more than 7 days out
+        events.forEach(function(g) {
+          var startTime = g.startTime || g.gameTime || g.date;
+          if (!startTime) return;
+          var gameTs = new Date(startTime).getTime();
+          if (gameTs <= now) return;
+          if (gameTs > now + sevenDays) return;
 
-          var away = g.away_team && (g.away_team.full_name || g.away_team.name || '');
-          var home = g.home_team && (g.home_team.full_name || g.home_team.name || '');
+          var away = g.awayTeam || (g.teams && g.teams.away && g.teams.away.name) || '';
+          var home = g.homeTeam || (g.teams && g.teams.home && g.teams.home.name) || '';
           if (!away || !home) return;
 
           var gameKey = normTeam(away) + '__' + normTeam(home);
           var entry = { away: away, home: home };
 
-          // consensus object: {spread: {away: {percent, money_percent}, home: {...}}, total: {over: {...}, under: {...}}}
-          var consensus = g.consensus || {};
+          // SBR consensus shape: g.consensus or g.publicBetting
+          var con = g.consensus || g.publicBetting || {};
 
           // Spread
-          if (consensus.spread) {
-            var sp = consensus.spread;
-            if (sp.away) {
-              if (sp.away.percent    != null) entry['spread_ticket_away'] = sp.away.percent;
-              if (sp.away.money_percent != null) entry['spread_money_away']  = sp.away.money_percent;
-            }
-            if (sp.home) {
-              if (sp.home.percent    != null) entry['spread_ticket_home'] = sp.home.percent;
-              if (sp.home.money_percent != null) entry['spread_money_home']  = sp.home.money_percent;
-            }
+          if (con.spread || con.side) {
+            var sp = con.spread || con.side || {};
+            var awayPct = sp.awayPercent || sp.away_percent || (sp.away && sp.away.tickets);
+            var homePct = sp.homePercent || sp.home_percent || (sp.home && sp.home.tickets);
+            var awayMoney = sp.awayMoney || sp.away_money || (sp.away && sp.away.money);
+            var homeMoney = sp.homeMoney || sp.home_money || (sp.home && sp.home.money);
+            if (awayPct != null) entry['spread_ticket_away'] = parseFloat(awayPct);
+            if (homePct != null) entry['spread_ticket_home'] = parseFloat(homePct);
+            if (awayMoney != null) entry['spread_money_away'] = parseFloat(awayMoney);
+            if (homeMoney != null) entry['spread_money_home'] = parseFloat(homeMoney);
           }
           // Total
-          if (consensus.total) {
-            var tot = consensus.total;
-            if (tot.over) {
-              if (tot.over.percent     != null) entry['total_ticket_over']  = tot.over.percent;
-              if (tot.over.money_percent != null) entry['total_money_over']   = tot.over.money_percent;
-            }
-            if (tot.under) {
-              if (tot.under.percent    != null) entry['total_ticket_under'] = tot.under.percent;
-              if (tot.under.money_percent != null) entry['total_money_under']  = tot.under.money_percent;
-            }
-          }
-          // Moneyline
-          if (consensus.moneyline) {
-            var ml = consensus.moneyline;
-            var awayNorm = normTeam(away);
-            var homeNorm = normTeam(home);
-            if (ml.away) {
-              if (ml.away.percent     != null) entry['ml_ticket_' + awayNorm] = ml.away.percent;
-              if (ml.away.money_percent != null) entry['ml_money_'  + awayNorm] = ml.away.money_percent;
-            }
-            if (ml.home) {
-              if (ml.home.percent     != null) entry['ml_ticket_' + homeNorm] = ml.home.percent;
-              if (ml.home.money_percent != null) entry['ml_money_'  + homeNorm] = ml.home.money_percent;
-            }
+          if (con.total || con.over_under) {
+            var tot = con.total || con.over_under || {};
+            var overPct = tot.overPercent || tot.over_percent || (tot.over && tot.over.tickets);
+            var underPct = tot.underPercent || tot.under_percent || (tot.under && tot.under.tickets);
+            var overMoney = tot.overMoney || tot.over_money || (tot.over && tot.over.money);
+            var underMoney = tot.underMoney || tot.under_money || (tot.under && tot.under.money);
+            if (overPct != null) entry['total_ticket_over'] = parseFloat(overPct);
+            if (underPct != null) entry['total_ticket_under'] = parseFloat(underPct);
+            if (overMoney != null) entry['total_money_over'] = parseFloat(overMoney);
+            if (underMoney != null) entry['total_money_under'] = parseFloat(underMoney);
           }
 
           newCache[gameKey] = entry;
           count++;
         });
 
-        console.log('AN ' + league.league + ': ' + count + ' games with bet %');
+        console.log('SBR ' + league.name + ': ' + count + ' games with bet %');
       } catch(e) {
-        console.log('AN ' + league.league + ' error: ' + e.message);
+        console.log('SBR ' + league.name + ' error: ' + e.message);
       }
 
-      // Small delay between league requests
-      await new Promise(function(r){ setTimeout(r, 500); });
+      await new Promise(function(r){ setTimeout(r, 300); });
     }
 
-    console.log('AN total: ' + Object.keys(newCache).length + ' games cached');
+    console.log('SBR total: ' + Object.keys(newCache).length + ' games cached');
     if (Object.keys(newCache).length > 0) anCache = newCache;
   } catch(err) {
-    console.log('AN fetch error: ' + err.message);
+    console.log('SBR fetch error: ' + err.message);
   }
 }
 
