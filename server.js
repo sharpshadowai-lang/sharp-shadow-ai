@@ -207,6 +207,14 @@ async function fetchActionNetwork() {
       );
       var items = dataRes.data;
 
+      // Debug: log first item to see actual structure
+      if (items.length > 0) {
+        console.log('AN ' + league + ' sample item keys: ' + Object.keys(items[0]).join(', '));
+        console.log('AN ' + league + ' sample: ' + JSON.stringify(items[0]).substring(0, 500));
+      } else {
+        console.log('AN ' + league + ': actor returned 0 items');
+      }
+
       // Parse bet % data per game
       items.forEach(function(item) {
         if (!item.away_team && !item.home_team && !item.teams) return;
