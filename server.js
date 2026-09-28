@@ -1269,4 +1269,7 @@ app.listen(PORT, async function() {
   } catch (err) {
     console.log('Startup error: ' + err.message);
   }
+  // Also fetch AN bet % on startup so data is ready immediately
+  console.log('Fetching Action Network bet % on startup...');
+  fetchActionNetwork().catch(function(e) { console.log('AN startup error: ' + e.message); });
 });
