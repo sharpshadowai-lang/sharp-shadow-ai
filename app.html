@@ -1075,7 +1075,7 @@ function showToast(msg){
 async function loadApp(){
   fetchSignals();
   loadOdds('ALL');
-  setInterval(fetchSignals, 90000);
+  setInterval(fetchSignals, 180000);
   // Picks are NOT auto-loaded — user clicks the tab to load them (saves AI API calls)
   // Animate hero stats
   animCount('hs1', 34, '', 1200);
@@ -1208,9 +1208,7 @@ function showEdgeView(view){
   } else if(view === 'picks'){
     document.getElementById('edgePicksView').style.display = 'flex';
     document.getElementById('epb-picks').classList.add('active');
-    // Load picks on first click only — not on every app load
-    var picksWelcome = document.getElementById('picksWelcome');
-    if(picksWelcome && picksWelcome.style.display !== 'none') loadPicks();
+    // Picks only load when user explicitly clicks GENERATE — never auto-load
   } else if(view === 'parlay'){
     document.getElementById('edgeParlayView').style.display = 'flex';
     document.getElementById('epb-parlay').classList.add('active');
