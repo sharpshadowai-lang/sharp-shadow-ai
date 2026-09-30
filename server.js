@@ -789,20 +789,17 @@ cron.schedule('*/15 * * * *', async function() {
     });
 
     var newSigs = detectMoves(games);
-    if (newSigs.length > 0) {
-      // Merge: new signals override old ones for the same game+market combo
-      var merged = newSigs.concat(liveSignals);
-      var seen = {};
-      liveSignals = merged.filter(function(s) {
-        var key = s.gameId + '__' + s.btype; // one signal per game per market type
-        if (seen[key]) return false;
-        seen[key] = true;
-        return true;
-      }).slice(0, 60);
-      console.log(newSigs.length + ' new signals detected, ' + liveSignals.length + ' total after dedup');
-    } else {
-      console.log('No new movements detected this cycle');
-    }
+    // Always merge new signals with existing — new signals take priority for same game+market
+    // Existing signals persist until their game starts (filtered above)
+    var merged = newSigs.concat(liveSignals);
+    var seen = {};
+    liveSignals = merged.filter(function(s) {
+      var key = s.gameId + '__' + s.btype;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).slice(0, 60);
+    console.log(newSigs.length + ' new signals, ' + liveSignals.length + ' total active (persisted until game start)');
   } catch (err) {
     console.log('Cron error: ' + err.message);
   }
@@ -978,7 +975,7 @@ app.post('/api/edge', async function(req, res) {
     var requestedModel = req.body.model || 'claude-haiku-4-5-20251001';
     // Only attach web_search to sonnet calls (picks/chat) — haiku (parlay) doesn't need it and it costs extra
     var toolsPayload = requestedModel.indexOf('sonnet') > -1
-      ? [{ type: 'web_search_20250305', name: 'web_search' }]
+      ? [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }]
       : [];
     var response = await axios.post('https://api.anthropic.com/v1/messages', {
       model: requestedModel,
