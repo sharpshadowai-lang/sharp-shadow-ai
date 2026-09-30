@@ -287,6 +287,7 @@ body{overflow-y:auto}
   /* panels shown via JS class */
   .dashboard .signals-panel.mob-active{display:flex}
   .dashboard .edge-panel.mob-active{display:flex}
+  .dashboard .odds-panel.mob-active{display:flex}
 }
 @media(max-width:768px){
   .hero-stats{gap:24px;flex-wrap:wrap}
@@ -575,6 +576,7 @@ body{overflow-y:auto}
   <div class="mob-tabs" id="mobTabs">
     <button class="mob-tab active" id="mobTabSignals" onclick="mobSwitch('signals')">⚡ SIGNALS</button>
     <button class="mob-tab" id="mobTabAI" onclick="mobSwitch('ai')">🤖 S.I.D.E. AI</button>
+    <button class="mob-tab" id="mobTabOdds" onclick="mobSwitch('odds')">📊 ODDS</button>
   </div>
 
   <div class="dashboard">
@@ -697,7 +699,7 @@ body{overflow-y:auto}
     </div>
 
     <!-- RIGHT: LIVE ODDS -->
-    <div class="odds-panel">
+    <div class="odds-panel" id="mobileOddsPanel">
       <div class="panel-header">
         <div class="ph-title">📊 LIVE ODDS</div>
         <div class="ph-count" id="oddsCount">0 GAMES</div>
@@ -799,15 +801,19 @@ var allGames = [];
 function mobSwitch(tab){
   var sp = document.getElementById('mobileSignalsPanel');
   var ap = document.getElementById('mobileAIPanel');
+  var op = document.getElementById('mobileOddsPanel');
   var ts = document.getElementById('mobTabSignals');
   var ta = document.getElementById('mobTabAI');
+  var to = document.getElementById('mobTabOdds');
   if(!sp||!ap) return;
+  sp.classList.remove('mob-active'); ap.classList.remove('mob-active'); if(op) op.classList.remove('mob-active');
+  ts.classList.remove('active'); ta.classList.remove('active'); if(to) to.classList.remove('active');
   if(tab === 'signals'){
-    sp.classList.add('mob-active'); ap.classList.remove('mob-active');
-    ts.classList.add('active'); ta.classList.remove('active');
+    sp.classList.add('mob-active'); ts.classList.add('active');
+  } else if(tab === 'odds'){
+    if(op) op.classList.add('mob-active'); if(to) to.classList.add('active');
   } else {
-    ap.classList.add('mob-active'); sp.classList.remove('mob-active');
-    ta.classList.add('active'); ts.classList.remove('active');
+    ap.classList.add('mob-active'); ta.classList.add('active');
   }
 }
 var currentSigFilter = 'all';
@@ -1227,7 +1233,7 @@ function sendEdge(){
   var typing = addTyping();
   edgeHistory.push({role:'user',content:msg});
   var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.sharpLabel+', moved '+s.mov+', '+s.bookCount+' books)';}).join('; ');
-  var todayForChat = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var _dn = new Date(); var todayForChat = _dn.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ' (local time ' + _dn.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ')';
   var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a rigorous sports betting market analyst. Today is ' + todayForChat + '. You have live web search. Use it to get current lines, injuries, and news before answering.\n\nYour job is to provide honest, evidence-based analysis - not to hype picks. When you identify a betting edge, explain your reasoning clearly: estimated win probability, implied probability from the line, estimated edge, and why the bet has value. When there is no edge, say so.\n\nNever say "lock," "guaranteed," or "can\'t lose." Use probability ranges and acknowledge uncertainty. The user wants to make better betting decisions, not be told what they want to hear.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet - lines appear stable');
   var chatToken = localStorage.getItem('ss_token') || '';
   fetch('/api/edge', {
@@ -1288,7 +1294,7 @@ async function loadPicks(){
   container.appendChild(loading);
 
   try{
-    var today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    var _td = new Date(); var today = _td.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ' (local time ' + _td.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ')';
     var token = localStorage.getItem('ss_token') || '';
 
     var PICKS_SYSTEM = `You are S.I.D.E. AI — the sharp money detector inside Sharp Shadow AI. Today is ${today}.
