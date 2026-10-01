@@ -824,8 +824,19 @@ function mobSwitch(tab){
 var currentSigFilter = 'all';
 var currentOddsFilter = 'ALL';
 var currentPlan = 'trial';
-var edgeHistory = [];
 var parlayLegs = [];
+
+// ===== DAILY PERSISTENCE =====
+var _todayKey = new Date().toLocaleDateString('en-US',{year:'numeric',month:'2-digit',day:'2-digit'});
+var _chatStorageKey = 'ss_chat_' + _todayKey;
+var _picksStorageKey = 'ss_picks_' + _todayKey;
+
+// Load today's chat history from localStorage
+var edgeHistory = [];
+try {
+  var _savedChat = localStorage.getItem(_chatStorageKey);
+  if(_savedChat) edgeHistory = JSON.parse(_savedChat);
+} catch(e) { edgeHistory = []; }
 
 // ===== CHECKOUT REDIRECT HANDLING =====
 (function(){
@@ -1079,6 +1090,27 @@ async function loadApp(){
   // Picks are NOT auto-loaded — user clicks the tab to load them (saves AI API calls)
   // Animate hero stats
   animCount('hs1', 34, '', 1200);
+  // Restore today's chat history
+  if(edgeHistory.length > 0){
+    var welcome = document.getElementById('edgeWelcome');
+    if(welcome) welcome.style.display = 'none';
+    for(var i=0;i<edgeHistory.length;i++){
+      addMsg(edgeHistory[i].content, edgeHistory[i].role === 'user' ? 'user' : 'bot');
+    }
+  }
+  // Restore today's picks if already generated
+  try {
+    var savedPicks = localStorage.getItem(_picksStorageKey);
+    if(savedPicks){
+      var picksData = JSON.parse(savedPicks);
+      var picksWelcome = document.getElementById('picksWelcome');
+      if(picksWelcome) picksWelcome.style.display = 'none';
+      var picksContainer = document.getElementById('edgePicks');
+      if(picksContainer) picksContainer.innerHTML = picksData.html;
+      var dateEl = document.getElementById('picksDate');
+      if(dateEl){ dateEl.textContent = picksData.dateLabel; dateEl.style.display = 'block'; }
+    }
+  } catch(e){}
 }
 
 function animCount(id, target, suffix, duration){
@@ -1246,6 +1278,7 @@ function sendEdge(){
   }).then(function(r){return r.json();}).then(function(data){
     var reply = data.content ? data.content.map(function(c){return c.text||'';}).join('') : 'No response';
     edgeHistory.push({role:'assistant',content:reply});
+    try { localStorage.setItem(_chatStorageKey, JSON.stringify(edgeHistory)); } catch(e){}
     if(typing) typing.remove();
     addMsg(reply, 'bot');
     if(btn){btn.disabled = false; btn.textContent = 'SEND';}
@@ -1282,13 +1315,29 @@ function addTyping(){
 async function loadPicks(){
   var container = document.getElementById('edgePicks');
   if(!container) return;
-  var welcome = document.getElementById('picksWelcome');
-  if(welcome) welcome.style.display = 'none';
+
+  // Check if picks already generated today — if so, block regeneration
+  try {
+    var savedPicks = localStorage.getItem(_picksStorageKey);
+    if(savedPicks){
+      var picksData = JSON.parse(savedPicks);
+      var welcome = document.getElementById('picksWelcome');
+      if(welcome) welcome.style.display = 'none';
+      container.innerHTML = picksData.html;
+      var dateEl = document.getElementById('picksDate');
+      if(dateEl){ dateEl.textContent = picksData.dateLabel; dateEl.style.display = 'block'; }
+      return; // Already have today's picks — don't regenerate
+    }
+  } catch(e){}
+
+  var welcome2 = document.getElementById('picksWelcome');
+  if(welcome2) welcome2.style.display = 'none';
   var dateEl = document.getElementById('picksDate');
   var now = new Date();
   var todayLabel = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   var timeLabel = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-  if(dateEl){ dateEl.textContent = '📅 ' + todayLabel + ' · ' + timeLabel; dateEl.style.display = 'block'; }
+  var dateString = '📅 ' + todayLabel + ' · ' + timeLabel;
+  if(dateEl){ dateEl.textContent = dateString; dateEl.style.display = 'block'; }
   container.innerHTML = '';
   var loading = document.createElement('div');
   loading.id = 'picksLoading';
@@ -1402,7 +1451,7 @@ IRON RULES — never break these:
       return;
     }
 
-    container.innerHTML = sections.map(function(section){
+    var renderedHTML = sections.map(function(section){
       var lines = section.trim().split('\n');
       var fields = {};
       lines.forEach(function(line){
@@ -1501,6 +1550,15 @@ IRON RULES — never break these:
         '<button class="pc-pick-rec" style="background:' + recColor + ';color:var(--bg);width:100%;padding:10px;font-family:Orbitron,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;border:none;cursor:default">' + rec + '</button>' +
         '</div>';
     }).join('');
+
+    container.innerHTML = renderedHTML;
+    // Save picks for the day — locked, no regeneration until tomorrow
+    try {
+      localStorage.setItem(_picksStorageKey, JSON.stringify({
+        html: renderedHTML,
+        dateLabel: dateString
+      }));
+    } catch(e){}
 
   }catch(e){
     container.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--red);text-align:center;padding:40px">Error: '+e.message+'</div>';
