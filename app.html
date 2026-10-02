@@ -1408,32 +1408,27 @@ Use ONLY games that start AFTER ${_isoNow} UTC. Verify every game time before pi
 +1 — Total moved down 2+ pts (sharp Under action confirmed)
 Score below 6 = PASS. Do not force. A PASS with good reasoning beats a weak pick.
 
-━━━ OUTPUT FORMAT — start immediately with PICK 1, no intro ━━━
+━━━ OUTPUT FORMAT — start immediately with TIER:, no intro, use exactly these field names ━━━
 
-PICK [1/2/3] — [TIER 1: SHARP EDGE / TIER 2: SOLID ANGLE / TIER 3: LEAN / PASS]
+TIER: [1 / 2 / 3 / PASS]
 SPORT: [NFL / NCAAF / MLB / NBA / NHL]
 GAME: [Away @ Home]
 GAME TIME: [Day, time, timezone — must be AFTER ${_isoNow} UTC]
 BET: [Spread ATS / Moneyline / Total Over-Under — no props, no halves]
 CURRENT LINE: [line + juice, e.g. -3.5 (-110)]
 OPENING LINE: [line when market opened]
-LINE MOVEMENT: [e.g. "Opened -7, now -3.5 — 3.5 pts of sharp action toward the dog"]
-KEY NUMBER CROSSED: [Yes – crossed [3/7] | No — only 3 and 7 qualify in football]
-PUBLIC BETTING %: [XX% on [side] — source if available, or "Est." if inferred]
-RLM CONFIRMED: [Yes — public XX% [side] but line moved [opposite] | No]
-SHARP BOOK SIGNAL: [Yes — Pinnacle/Circa moved [direction] | Not confirmed]
-STEAM MOVE: [Yes — [N] books moved within [timeframe] | No]
-INJURY FACTOR: [Specific player/status and how it affects line | None significant]
-WEATHER: [Wind/rain/temp if outdoor game | Dome/Indoor — N/A]
-SHARP SCORE: [X/17 — breakdown of points]
-ESTIMATED WIN PROB: [X%]
-IMPLIED PROB (juice): [X% — break-even at this line]
-EDGE: [+X% edge | -X% — overpriced | Marginal]
-WHY THIS BET: [3 specific, data-backed reasons. No generic statements. Cite actual movement, splits, or situational facts.]
+LINE MOVEMENT: [e.g. "Opened -7, now -3.5 — 3.5 pts of sharp Under action"]
+KEY NUMBER CROSSED: [Yes – crossed 3 / Yes – crossed 7 / No — only 3 and 7 in football]
+RLM: [Yes — XX% public on [side] but line moved [opposite direction] / No]
+SHARP ACTION: [STRONG SHARP EVIDENCE / POSSIBLE SHARP ACTION / NO SHARP EVIDENCE]
+ESTIMATED WIN PROBABILITY: [X%]
+IMPLIED PROBABILITY: [X% — break-even at this juice]
+ESTIMATED EDGE: [+X% / -X%]
+KEY REASONS: [3 specific data-backed reasons — cite actual line movement, splits, situational facts. No generic statements.]
 MAIN RISK: [The specific scenario where this loses]
 CONFIDENCE: [X%]
-VALUE: [STRONG VALUE / FAIR VALUE / OVERPRICED / PASS]
-PLAY: [BET IT / LEAN / PASS]
+VALUE STATUS: [GOOD VALUE / FAIR VALUE / OVERPRICED]
+RECOMMENDATION: [BET / LEAN / PASS]
 
 ---
 
@@ -1518,20 +1513,23 @@ PLAY: [BET IT / LEAN / PASS]
 
       var game = fields['GAME'] || '';
       var bet = fields['BET'] || '';
-      var tier = fields['TIER'] || '';
+      var tierRaw = fields['TIER'] || '';
+      var tier = tierRaw.replace(/[^0-9A-Z\s]/gi,'').trim().charAt(0); // just grab '1','2','3'
       var sport = fields['SPORT'] || '';
+      var gameTime = fields['GAME TIME'] || '';
       var conf = fields['CONFIDENCE'] || '';
-      var rec = fields['RECOMMENDATION'] || 'ANALYZE';
+      var rec = fields['RECOMMENDATION'] || fields['PLAY'] || 'ANALYZE';
+      if(rec.toUpperCase() === 'BET IT') rec = 'BET';
       var sharp = fields['SHARP ACTION'] || '';
-      var edge = fields['ESTIMATED EDGE'] || '';
-      var valueStatus = fields['VALUE STATUS'] || '';
-      var rlm = fields['RLM'] || '';
+      var edge = fields['ESTIMATED EDGE'] || fields['EDGE'] || '';
+      var valueStatus = fields['VALUE STATUS'] || fields['VALUE'] || '';
+      var rlm = fields['RLM'] || fields['RLM CONFIRMED'] || '';
       var movement = fields['LINE MOVEMENT'] || '';
       var keyNum = fields['KEY NUMBER CROSSED'] || '';
-      var estProb = fields['ESTIMATED WIN PROBABILITY'] || '';
-      var impliedProb = fields['IMPLIED PROBABILITY'] || '';
+      var estProb = fields['ESTIMATED WIN PROBABILITY'] || fields['ESTIMATED WIN PROB'] || '';
+      var impliedProb = fields['IMPLIED PROBABILITY'] || fields['IMPLIED PROB (JUICE)'] || '';
       var mainRisk = fields['MAIN RISK'] || '';
-      var keyReasons = fields['KEY REASONS'] || '';
+      var keyReasons = fields['KEY REASONS'] || fields['WHY THIS BET'] || '';
 
       // Client-side sanity: if edge is negative, force PASS and OVERPRICED regardless of AI output
       var edgeNum = parseFloat((edge || '0').replace('%',''));
@@ -1551,8 +1549,9 @@ PLAY: [BET IT / LEAN / PASS]
       var sharpColor = sharp.indexOf('STRONG') > -1 ? 'var(--cyan)' :
                        sharp.indexOf('POSSIBLE') > -1 ? 'var(--yellow)' : 'var(--muted)';
 
-      var tierColor = tier === '1' ? 'var(--cyan)' : tier === '2' ? 'var(--green)' : 'var(--muted)';
-      var tierLabel = tier === '1' ? 'TIER 1 - HIGHEST CONFIDENCE' : tier === '2' ? 'TIER 2 - STRONG' : tier === '3' ? 'TIER 3 - LEAN' : '';
+      var isPassCard = tierRaw.toUpperCase().indexOf('PASS') > -1 || rec.toUpperCase() === 'PASS';
+      var tierColor = tier === '1' ? 'var(--cyan)' : tier === '2' ? 'var(--green)' : isPassCard ? 'var(--muted)' : 'var(--yellow)';
+      var tierLabel = tier === '1' ? 'TIER 1 — SHARP EDGE' : tier === '2' ? 'TIER 2 — SOLID ANGLE' : tier === '3' ? 'TIER 3 — LEAN' : isPassCard ? 'PASS' : '';
 
       return '<div class="pick-card" style="margin-bottom:10px;' + cardOpacity + '">' +
         // Header row
@@ -1564,7 +1563,8 @@ PLAY: [BET IT / LEAN / PASS]
           (conf ? '<span style="font-family:Orbitron,sans-serif;font-size:10px;font-weight:700;color:var(--cyan)">' + conf + ' CONF</span>' : '') +
         '</div>' +
         // Game + bet
-        '<div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">' + game + '</div>' +
+        '<div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">' + game + '</div>' +
+        (gameTime ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin-bottom:4px">🕐 ' + gameTime + '</div>' : '') +
         '<div style="font-family:Orbitron,sans-serif;font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:10px">' + bet + '</div>' +
         // Stats grid
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">' +
