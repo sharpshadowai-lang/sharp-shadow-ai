@@ -682,6 +682,11 @@ function detectMoves(games) {
 
       var result = classifySharpMove(md);
       if (result.classification === 'NO_SHARP_EVIDENCE') continue;
+      // Filter out weak POSSIBLE signals: single book or tiny move from open
+      if (result.classification === 'POSSIBLE_SHARP' && md.booksMoved <= 1) continue;
+      // Football requires at least 3pts total movement to surface any signal
+      var isFootball = md.sportKey && (md.sportKey.indexOf('americanfootball') !== -1);
+      if (isFootball && md.marketKey === 'spreads' && md.maxMovement < 3.0) continue;
 
       // Which side is market action on?
       var netDir = md.directionVotes < 0 ? -1 : 1;
