@@ -121,6 +121,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 let previousLines = {};
+let openingLines  = {}; // Stores the FIRST line ever seen per game+book+market — never overwritten
 let liveSignals = [];
 let gamesCache = [];
 let lastUpdated = null;
@@ -360,15 +361,32 @@ function crossesKeyNumber(fromPt, toPt, sportKey) {
 
 // Minimum point movement before we consider it a real line move (not juice)
 function minLineMove(sportKey, marketKey) {
-  if (marketKey === 'totals') return 1.0;   // 1pt minimum on totals
+  if (marketKey === 'h2h_ml') return 10;    // MLB moneyline: 10 cents minimum
+  if (marketKey === 'totals') return 0.5;   // 0.5pt minimum on totals
   return 0.5;                               // 0.5pt minimum on spreads
 }
 
 // "Notable" threshold — above this is meaningful, below is minor
 function notableLineMove(sportKey, marketKey) {
-  if (marketKey === 'totals') return 1.5;
-  if (sportKey === 'americanfootball_nfl' || sportKey === 'americanfootball_ncaaf') return 1.0;
+  if (marketKey === 'h2h_ml') return 20;    // MLB moneyline: 20+ cents = meaningful
+  if (marketKey === 'totals') {
+    if (sportKey === 'baseball_mlb') return 0.5; // MLB totals move in 0.5 increments
+    return 1.5;
+  }
+  // Football: 3.5pt threshold — must cross through key numbers to matter
+  if (sportKey === 'americanfootball_nfl' || sportKey === 'americanfootball_ncaaf') return 3.5;
   return 1.0;
+}
+
+// "Strong" threshold — movement of this size is very significant
+function strongLineMove(sportKey, marketKey) {
+  if (marketKey === 'h2h_ml') return 30;    // MLB moneyline: 30+ cents = strong
+  if (marketKey === 'totals') {
+    if (sportKey === 'baseball_mlb') return 1.0;
+    return 2.5;
+  }
+  if (sportKey === 'americanfootball_nfl' || sportKey === 'americanfootball_ncaaf') return 5.0;
+  return 2.0;
 }
 
 // Well-known market-making / sharp-friendly sportsbooks that move first
@@ -383,44 +401,53 @@ function isMajorBook(bookKey) {
 }
 
 function classifySharpMove(data) {
-  var movement     = data.maxMovement;
-  var bookCount    = data.booksMoved;
-  var minsMoved    = data.minsMoved;
+  var movement       = data.maxMovement;
+  var openMovement   = data.openMovement; // total movement from opening line
+  var bookCount      = data.booksMoved;
+  var minsMoved      = data.minsMoved;
   var sharpBookMoved = data.sharpBookMoved;
   var majorFollowed  = data.majorBooksFollowed;
-  var crossedKey   = data.crossedKeyNumber;
-  var sportKey     = data.sportKey;
-  var marketKey    = data.marketKey;
+  var crossedKey     = data.crossedKeyNumber;
+  var sportKey       = data.sportKey;
+  var marketKey      = data.marketKey;
 
-  var minThresh    = minLineMove(sportKey, marketKey);
-  var notableThresh = notableLineMove(sportKey, marketKey);
+  var minThresh      = minLineMove(sportKey, marketKey);
+  var notableThresh  = notableLineMove(sportKey, marketKey);
+  var strongThresh   = strongLineMove(sportKey, marketKey);
 
   // Must clear minimum to count at all
-  if (movement < minThresh) return { classification: 'NO_SHARP_EVIDENCE', confidence: 0 };
+  if (movement < minThresh) return { classification: 'NO_SHARP_EVIDENCE', confidence: 0, score10: 0 };
 
   // Score evidence points — each factor adds to confidence
   var score = 0;
   var evidence = [];
 
-  // 1. Line movement size
-  if (movement >= notableThresh) {
+  // 1. Line movement size (from open is more meaningful than poll-to-poll)
+  var effectiveMove = openMovement > movement ? openMovement : movement;
+  if (effectiveMove >= strongThresh) {
+    score += 4;
+    evidence.push('Large line move (' + effectiveMove.toFixed(1) + ' pts from open)');
+  } else if (effectiveMove >= notableThresh) {
     score += 2;
-    evidence.push('Meaningful line move (' + movement + ' pts)');
+    evidence.push('Notable line move (' + effectiveMove.toFixed(1) + ' pts from open)');
   } else {
     score += 1;
-    evidence.push('Minor line move (' + movement + ' pts)');
+    evidence.push('Minor line move (' + effectiveMove.toFixed(1) + ' pts)');
   }
 
   // 2. Key number crossing (extra weight in football)
   if (crossedKey) {
     score += 3;
-    evidence.push('Moved through key number (' + crossedKey + ')');
+    evidence.push('Crossed key number (' + crossedKey + ') from open');
   }
 
   // 3. Multi-book confirmation
-  if (bookCount >= 4) {
+  if (bookCount >= 5) {
+    score += 5;
+    evidence.push(bookCount + ' books moved in sync — strong steam');
+  } else if (bookCount >= 4) {
     score += 4;
-    evidence.push(bookCount + ' books moved in sync — possible steam');
+    evidence.push(bookCount + ' books moved in sync — steam move');
   } else if (bookCount === 3) {
     score += 3;
     evidence.push('3 books confirmed move');
@@ -428,7 +455,6 @@ function classifySharpMove(data) {
     score += 2;
     evidence.push('2 books moved same direction');
   } else {
-    // Single book — major red flag for sharp label
     score += 0;
     evidence.push('Single book movement only');
   }
@@ -436,11 +462,14 @@ function classifySharpMove(data) {
   // 4. Sharp/market-making book moved
   if (sharpBookMoved) {
     score += 3;
-    evidence.push('Sharp-book (limit-accepting) moved first');
+    evidence.push('Sharp-book (Pinnacle/Circa) moved first');
   }
 
   // 5. Major books followed sharp book
-  if (majorFollowed >= 2) {
+  if (majorFollowed >= 3) {
+    score += 4;
+    evidence.push(majorFollowed + ' major books followed sharp');
+  } else if (majorFollowed >= 2) {
     score += 3;
     evidence.push(majorFollowed + ' major books followed');
   } else if (majorFollowed === 1) {
@@ -451,27 +480,36 @@ function classifySharpMove(data) {
   // 6. Speed of movement (steam indicator)
   if (minsMoved <= 5 && bookCount >= 3) {
     score += 3;
-    evidence.push('Rapid synchronized movement (<5 min)');
+    evidence.push('Rapid synchronized movement (<5 min) — steam');
   } else if (minsMoved <= 15 && bookCount >= 2) {
     score += 1;
     evidence.push('Quick movement (<15 min)');
   }
 
+  // 7. Baseball-specific: large ML move is a stronger signal than spread
+  if (marketKey === 'h2h_ml' && effectiveMove >= 30) {
+    score += 2;
+    evidence.push('MLB moneyline move of ' + effectiveMove + ' cents — sharp ML action');
+  }
+
+  // Convert raw score to 1-10 confidence scale
+  var score10 = Math.min(10, Math.round((score / 22) * 10));
+
   // Classify by total score
   // Single-book moves cap at POSSIBLE regardless of score
   var classification, str;
   if (bookCount <= 1) {
-    if (score >= 4) {
+    if (score >= 5) {
       classification = 'POSSIBLE_SHARP';
       str = 3;
     } else {
       classification = 'NO_SHARP_EVIDENCE';
       str = 1;
     }
-  } else if (score >= 14) {
+  } else if (score >= 16) {
     classification = 'CONFIRMED_MARKET_MOVE';
     str = 6;
-  } else if (score >= 9) {
+  } else if (score >= 10) {
     classification = 'STRONG_SHARP_MOVEMENT';
     str = 5;
   } else if (score >= 5) {
@@ -482,7 +520,7 @@ function classifySharpMove(data) {
     str = 1;
   }
 
-  return { classification: classification, confidence: score, evidence: evidence, str: str };
+  return { classification: classification, confidence: score, score10: score10, evidence: evidence, str: str };
 }
 
 function getSharpLabel(classification) {
@@ -529,12 +567,16 @@ function detectMoves(games) {
 
       for (var mi = 0; mi < book.markets.length; mi++) {
         var market = book.markets[mi];
-        if (market.key !== 'spreads' && market.key !== 'totals') continue;
+        // Track spreads, totals, AND h2h moneyline (for MLB sharp detection)
+        var isMLMoneyline = market.key === 'h2h' && game.sportKey === 'baseball_mlb';
+        if (market.key !== 'spreads' && market.key !== 'totals' && !isMLMoneyline) continue;
         if (!market.outcomes) continue;
 
-        // Track primary outcome: away team for spreads, Over for totals
+        var marketTrackKey = isMLMoneyline ? 'h2h_ml' : market.key;
+
+        // Track primary outcome: away team for spreads/ML, Over for totals
         var primaryOutcome = null;
-        if (market.key === 'spreads') {
+        if (market.key === 'spreads' || isMLMoneyline) {
           for (var oi = 0; oi < market.outcomes.length; oi++) {
             if (market.outcomes[oi].name === game.away_team) { primaryOutcome = market.outcomes[oi]; break; }
           }
@@ -546,15 +588,22 @@ function detectMoves(games) {
           if (!primaryOutcome) primaryOutcome = market.outcomes[0];
         }
 
-        if (!primaryOutcome || primaryOutcome.point === undefined) continue;
+        // For MLB moneyline, track the price (juice) as the number, not point
+        var curPt;
+        if (isMLMoneyline) {
+          curPt = primaryOutcome.price !== undefined ? primaryOutcome.price : null;
+        } else {
+          curPt = primaryOutcome.point !== undefined ? primaryOutcome.point : null;
+        }
+        if (curPt === null || curPt === undefined) continue;
 
-        var storeKey = game.id + '__' + bookKey + '__' + market.key;
-        var curPt = primaryOutcome.point;
+        var storeKey = game.id + '__' + bookKey + '__' + marketTrackKey;
 
-        if (!marketData[market.key]) {
-          marketData[market.key] = {
+        if (!marketData[marketTrackKey]) {
+          marketData[marketTrackKey] = {
             booksMoved: 0,
             maxMovement: 0,
+            openMovement: 0,
             totalDiff: 0,
             directionVotes: 0,
             bookList: [],
@@ -565,24 +614,35 @@ function detectMoves(games) {
             curPt: null,
             crossedKeyNumber: null,
             sportKey: game.sportKey,
-            marketKey: market.key
+            marketKey: marketTrackKey,
+            isMLMoneyline: isMLMoneyline
           };
         }
 
-        var md = marketData[market.key];
+        var md = marketData[marketTrackKey];
         md.curPt = curPt;
+
+        // Store opening line the FIRST time we ever see this game+book+market
+        if (openingLines[storeKey] === undefined) {
+          openingLines[storeKey] = { point: curPt, time: now };
+        }
 
         if (previousLines[storeKey] !== undefined) {
           var prevPt = previousLines[storeKey].point;
           var prevTime = previousLines[storeKey].time;
+          var openPt = openingLines[storeKey].point;
           var diff = curPt - prevPt;
           var movement = Math.abs(diff);
+          var openDiff = Math.abs(curPt - openPt);
           var mins = (now - prevTime) / 60000;
-          var minThresh = minLineMove(game.sportKey, market.key);
+          var minThresh = minLineMove(game.sportKey, marketTrackKey);
 
-          if (md.openPt === null) md.openPt = prevPt;
+          if (md.openPt === null) md.openPt = openPt;
 
-          // Only count if it's a real LINE move (not just juice)
+          // Track max movement from opening line across all books
+          md.openMovement = Math.max(md.openMovement, openDiff);
+
+          // Only count if it's a real LINE move (not noise)
           if (movement >= minThresh) {
             md.booksMoved++;
             md.totalDiff += diff;
@@ -596,9 +656,9 @@ function detectMoves(games) {
             // Check if major public book is following
             else if (isMajorBook(bookKey)) md.majorBooksFollowed++;
 
-            // Check for key number crossing
-            if (!md.crossedKeyNumber) {
-              var kn = crossesKeyNumber(prevPt, curPt, game.sportKey);
+            // Check for key number crossing (from opening line)
+            if (!md.crossedKeyNumber && !isMLMoneyline) {
+              var kn = crossesKeyNumber(openPt, curPt, game.sportKey);
               if (kn) md.crossedKeyNumber = kn;
             }
           }
@@ -624,12 +684,23 @@ function detectMoves(games) {
       if (result.classification === 'NO_SHARP_EVIDENCE') continue;
 
       // Which side is market action on?
-      // Net direction of books: negative = away team getting shorter (sharps on away)
-      //                          positive = away team getting longer (sharps on home)
       var netDir = md.directionVotes < 0 ? -1 : 1;
       var sharpSide, sharpPt, betType;
 
-      if (mKey === 'spreads') {
+      if (mKey === 'h2h_ml') {
+        // MLB moneyline: negative price = favorite, positive = underdog
+        // Price moving down (more negative) = sharp money on that side (favorite getting shorter)
+        // Price moving up = sharp on underdog
+        if (netDir < 0) {
+          sharpSide = game.away_team;
+          sharpPt = formatPt(md.curPt); // current ML price
+        } else {
+          sharpSide = game.home_team;
+          // Find home price from opposite direction
+          sharpPt = formatPt(-md.curPt);
+        }
+        betType = 'Moneyline';
+      } else if (mKey === 'spreads') {
         if (netDir < 0) {
           sharpSide = game.away_team;
           sharpPt = formatPt(md.curPt);
@@ -645,6 +716,7 @@ function detectMoves(games) {
       }
 
       var openPt = md.openPt !== null ? md.openPt : md.curPt;
+      var openMovTotal = md.openMovement || 0;
 
       var signal = {
         id: result.classification + '_' + game.id + '_' + mKey + '_' + now,
@@ -662,17 +734,19 @@ function detectMoves(games) {
         open: formatPt(openPt),
         cur: formatPt(md.curPt),
         mov: formatMov(md.directionVotes < 0 ? -md.maxMovement : md.maxMovement),
+        movFromOpen: openMovTotal > 0 ? (netDir < 0 ? '-' : '+') + openMovTotal.toFixed(1) + (mKey === 'h2h_ml' ? '¢' : ' pts') : null,
         books: md.bookList.slice(0, 5),
         bookCount: md.booksMoved,
         sharpBookMoved: md.sharpBookMoved,
         crossedKey: md.crossedKeyNumber,
         confidence: result.confidence,
+        score10: result.score10,
         evidence: result.evidence,
         str: result.str,
         ago: Math.round(md.minsMoved === 9999 ? 0 : md.minsMoved),
         ts: now,
         // Display fields
-        pct: Math.min(95, result.confidence * 6),
+        pct: Math.min(98, result.score10 * 10),
         bfor: 0,
         mfor: 0
       };
@@ -756,13 +830,14 @@ function detectMoves(games) {
     if (bestSignal) {
       // Surface POSSIBLE and above — CONFIRMED and STRONG are rare and important
       found.push(bestSignal);
-      console.log(bestSignal.sharpLabel + ': ' + game.away_team + ' vs ' + game.home_team +
+      console.log(bestSignal.sharpLabel + ' [' + bestSignal.score10 + '/10]: ' + game.away_team + ' vs ' + game.home_team +
         ' | ' + bestSignal.bet + ' (' + bestSignal.btype + ')' +
         ' | Open: ' + bestSignal.open + ' → ' + bestSignal.cur +
+        (bestSignal.movFromOpen ? ' | From open: ' + bestSignal.movFromOpen : '') +
         ' | Books: ' + bestSignal.bookCount +
         (bestSignal.sharpBookMoved ? ' | Sharp book moved' : '') +
         (bestSignal.crossedKey ? ' | KEY NUMBER: ' + bestSignal.crossedKey : '') +
-        ' | ' + bestSignal.evidence.join('; '));
+        ' | Score: ' + bestSignal.confidence + ' raw | ' + bestSignal.evidence.join('; '));
     }
   }
   return found;
