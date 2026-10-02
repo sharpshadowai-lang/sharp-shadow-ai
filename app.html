@@ -1196,11 +1196,12 @@ function renderSignals(){
       '<div class="sc-game">' + s.game + '</div>' +
       '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">SHARP ACTION ON</div>' +
       '<div class="sc-bet">▸ ' + s.bet + '</div>' +
-      '<div class="sc-bet-label" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">LINE MOVED</div>' +
-      '<div class="sc-mov-row"><span class="sc-open">' + s.open + '</span><span class="sc-arrow">→</span><span class="sc-cur">' + s.cur + '</span><span class="sc-mov" style="color:var(--green)">' + s.mov + '</span></div>' +
-      '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:6px 0;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<div class="sc-bet-label" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">' + (s.btype === 'Moneyline' ? 'ML PRICE MOVED' : 'LINE MOVED') + '</div>' +
+      '<div class="sc-mov-row"><span class="sc-open">' + s.open + '</span><span class="sc-arrow">→</span><span class="sc-cur">' + s.cur + '</span><span class="sc-mov" style="color:var(--green)">' + s.mov + '</span>' + (s.movFromOpen ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:#ffd700;margin-left:6px">(' + s.movFromOpen + ' from open)</span>' : '') + '</div>' +
+      '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
         '<span style="color:var(--muted)">📚 ' + (s.bookCount||1) + ' BOOK' + ((s.bookCount||1)>1?'S':'') + ' MOVED</span>' +
         '<span style="color:' + (s.str>=6?'#00ff88':s.str>=5?'#00e5ff':s.str>=3?'#ffd700':'var(--muted)') + '">' + (s.sharpLabel||'NO SHARP EVIDENCE') + '</span>' +
+        (s.score10 ? '<span style="margin-left:auto;background:rgba(0,0,0,.4);padding:2px 7px;border-radius:4px;color:' + (s.score10>=8?'#00ff88':s.score10>=6?'#00e5ff':s.score10>=4?'#ffd700':'var(--muted)') + ';font-weight:700">' + s.score10 + '/10</span>' : '') +
       '</div>' +
       (s.hasBetData ? (
         '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:4px 0 6px;padding:7px 10px;background:rgba(0,0,0,.35);border-left:3px solid ' + (s.isRLM ? 'var(--purple)' : s.isSharpMoney ? 'var(--cyan)' : 'var(--muted2)') + '">' +
@@ -1267,14 +1268,14 @@ function sendEdge(){
   addMsg(msg, 'user');
   var typing = addTyping();
   edgeHistory.push({role:'user',content:msg});
-  var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ('+s.sharpLabel+', moved '+s.mov+', '+s.bookCount+' books)';}).join('; ');
+  var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ['+s.btype+'] ('+s.sharpLabel+', score '+(s.score10||'?')+'/10, moved '+s.mov+(s.movFromOpen?' / '+s.movFromOpen+' from open':'')+', '+s.bookCount+' books'+(s.sharpBookMoved?' / sharp book moved':'')+')';}).join('; ');
   var _dn = new Date(); var todayForChat = _dn.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ' (local time ' + _dn.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ')';
-  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst. Today is ' + todayForChat + '. You have live web search — use it to get current lines, injuries, and news before answering.\n\nCRITICAL RULE: Always end every response with a clear, direct bottom line. No exceptions. Format it like this:\n\n🎯 BOTTOM LINE: [BET / LEAN / FADE / PASS] — [specific bet, e.g. "Chiefs -3.5" or "Under 44.5"] at [current line/odds]. [One sentence why.]\n\nDo your analysis first, then ALWAYS give the bottom line. The user needs to know what to actually do, not just get information. Be direct like a sharp bettor, not a disclaimer machine. Use probability and edge when relevant but always land on a clear recommendation.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet - lines appear stable');
+  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst. Today is ' + todayForChat + '. You have live web search — use it to get current lines, injuries, and news before answering.\n\nMULTI-GAME RULE: When the user asks for picks, bets, or analysis for multiple games (e.g. "college football games tonight", "best bets today", "all sharp plays"), you MUST cover ALL qualifying games — not just one. Search for each game, analyze each one separately, and give a BOTTOM LINE for every single game. Do not stop after the first game. Cover every game that fits the request.\n\nCRITICAL RULE: Always end every response with a clear, direct bottom line. No exceptions. If multiple games, give a BOTTOM LINE for EACH game, then a final summary of your top pick. Format it like this:\n\n🎯 BOTTOM LINE: [BET / LEAN / FADE / PASS] — [specific bet, e.g. "Chiefs -3.5" or "Under 44.5"] at [current line/odds]. [One sentence why.]\n\nDo your analysis first, then ALWAYS give the bottom line(s). The user needs to know what to actually do, not just get information. Be direct like a sharp bettor, not a disclaimer machine. Use probability and edge when relevant but always land on a clear recommendation.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet - lines appear stable');
   var chatToken = localStorage.getItem('ss_token') || '';
   fetch('/api/edge', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({token:chatToken,model:'claude-sonnet-4-6',max_tokens:1000,system:sys,messages:edgeHistory})
+    body: JSON.stringify({token:chatToken,model:'claude-sonnet-4-6',max_tokens:2500,system:sys,messages:edgeHistory})
   }).then(function(r){return r.json();}).then(function(data){
     var reply = data.content ? data.content.map(function(c){return c.text||'';}).join('') : 'No response';
     edgeHistory.push({role:'assistant',content:reply});
@@ -1401,6 +1402,7 @@ RECOMMENDATION: [BET / LEAN / PASS]
 ---
 
 IRON RULES — never break these:
+- ONLY pick games that have NOT yet started as of right now (${today}). If a game has already kicked off, started, or is in progress — SKIP IT. Do not pick games that already happened or are currently being played.
 - PASS is correct when there is no clear edge. Do not force picks.
 - VALUE STATUS must match ESTIMATED EDGE. Negative edge = OVERPRICED, always.
 - KEY NUMBER: ONLY 3, 7, 10, 14 in football. 4, 4.5, 5, 6 are NOT key numbers. Write No.
@@ -1419,7 +1421,7 @@ IRON RULES — never break these:
         system: PICKS_SYSTEM,
         messages: [{
           role: 'user',
-          content: 'Today is ' + today + '. Search for today\'s games, opening lines, current lines, and line movement across NFL, NCAAF, and MLB. Find where sharp money has moved the number. Look for reverse line movement, steam moves, and totals that have dropped significantly from open. Output exactly 3 pick cards starting with TIER: - no other text.'
+          content: 'Today is ' + today + '. Search for upcoming games that have NOT yet started — only future games, not games already in progress or completed. Find opening lines, current lines, and line movement across NFL, NCAAF, MLB, NBA, and NHL. Find where sharp money has moved the number. Look for reverse line movement, steam moves, and totals that have dropped significantly from open. Skip any game that has already kicked off or started. Output exactly 3 pick cards starting with TIER: - no other text.'
         }]
       })
     });
