@@ -677,6 +677,10 @@ body{overflow-y:auto}
             <div class="ew-sub">S.I.D.E. AI scans today's slate for genuine edge — line movement, sharp angles, reverse line movement. Click below to generate picks.</div>
             <button onclick="loadPicks()" style="font-family:Orbitron,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;background:var(--cyan);color:var(--bg);border:none;padding:14px 32px;cursor:pointer;margin-top:8px">GENERATE TODAY'S PICKS</button>
           </div>
+          <div id="picksRefreshBar" style="display:none;justify-content:flex-end;padding:8px 16px 0;gap:8px;align-items:center">
+            <span style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);letter-spacing:1px">PICKS LOCKED FOR TODAY</span>
+            <button onclick="refreshPicks()" style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;letter-spacing:1px;background:transparent;color:var(--yellow);border:1px solid var(--yellow);padding:5px 12px;cursor:pointer">↺ REFRESH</button>
+          </div>
         </div>
       </div>
 
@@ -1109,6 +1113,8 @@ async function loadApp(){
       if(picksContainer) picksContainer.innerHTML = picksData.html;
       var dateEl = document.getElementById('picksDate');
       if(dateEl){ dateEl.textContent = picksData.dateLabel; dateEl.style.display = 'block'; }
+      var refreshBar = document.getElementById('picksRefreshBar');
+      if(refreshBar) refreshBar.style.display = 'flex';
     }
   } catch(e){}
 }
@@ -1313,11 +1319,20 @@ function addTyping(){
 }
 
 // ===== DAILY PICKS =====
+function refreshPicks(){
+  try { localStorage.removeItem(_picksStorageKey); } catch(e){}
+  var refreshBar = document.getElementById('picksRefreshBar');
+  if(refreshBar) refreshBar.style.display = 'none';
+  var container = document.getElementById('edgePicks');
+  if(container){ container.innerHTML = ''; }
+  loadPicks();
+}
+
 async function loadPicks(){
   var container = document.getElementById('edgePicks');
   if(!container) return;
 
-  // Check if picks already generated today — if so, block regeneration
+  // Check if picks already generated today — show cached, show refresh bar
   try {
     var savedPicks = localStorage.getItem(_picksStorageKey);
     if(savedPicks){
@@ -1327,7 +1342,9 @@ async function loadPicks(){
       container.innerHTML = picksData.html;
       var dateEl = document.getElementById('picksDate');
       if(dateEl){ dateEl.textContent = picksData.dateLabel; dateEl.style.display = 'block'; }
-      return; // Already have today's picks — don't regenerate
+      var refreshBar = document.getElementById('picksRefreshBar');
+      if(refreshBar) refreshBar.style.display = 'flex';
+      return; // Already have today's picks — show refresh button to regenerate
     }
   } catch(e){}
 
