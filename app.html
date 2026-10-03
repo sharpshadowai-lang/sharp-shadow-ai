@@ -1203,7 +1203,15 @@ function renderSignals(){
       '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">SHARP ACTION ON</div>' +
       '<div class="sc-bet">▸ ' + s.bet + '</div>' +
       '<div class="sc-bet-label" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">' + (s.btype === 'Moneyline' ? 'ML PRICE MOVED' : 'LINE MOVED') + '</div>' +
-      '<div class="sc-mov-row"><span class="sc-open">' + s.open + '</span><span class="sc-arrow">→</span><span class="sc-cur">' + s.cur + '</span><span class="sc-mov" style="color:var(--green)">' + s.mov + '</span>' + (s.movFromOpen ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:#ffd700;margin-left:6px">(' + s.movFromOpen + ' from open)</span>' : '') + '</div>' +
+      '<div class="sc-mov-row">' +
+        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin-right:2px">OPEN</span>' +
+        '<span class="sc-open" style="font-size:11px;font-weight:700;color:var(--text)">' + s.open + '</span>' +
+        '<span class="sc-arrow" style="color:var(--muted);margin:0 4px">→</span>' +
+        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin-right:2px">NOW</span>' +
+        '<span class="sc-cur">' + s.cur + '</span>' +
+        '<span class="sc-mov" style="color:var(--green);margin-left:auto">' + s.mov + '</span>' +
+      '</div>' +
+      (s.movFromOpen ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#ffd700;margin-bottom:4px">📐 ' + s.movFromOpen + ' total from open</div>' : '') +
       '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
         '<span style="color:var(--muted)">📚 ' + (s.bookCount||1) + ' BOOK' + ((s.bookCount||1)>1?'S':'') + ' MOVED</span>' +
         '<span style="color:' + (s.str>=6?'#00ff88':s.str>=5?'#00e5ff':s.str>=3?'#ffd700':'var(--muted)') + '">' + (s.sharpLabel||'NO SHARP EVIDENCE') + '</span>' +
@@ -1360,12 +1368,32 @@ async function loadPicks(){
   var loading = document.createElement('div');
   loading.id = 'picksLoading';
   loading.className = 'edge-welcome';
-  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">ANALYZING TODAY\'S SLATE...</div><div class="ew-sub">Scanning markets across all sports for genuine edge. This is not guessing - this is evidence-based analysis.</div>';
+  loading.innerHTML = '<div class="ew-icon">🤖</div><div class="ew-title">ANALYZING TODAY\'S SLATE...</div><div class="ew-sub">Pulling live signals · Scanning line movement · Running sharp algorithm. This takes 20-30 seconds.</div>';
   container.appendChild(loading);
 
   try{
     var _td = new Date(); var today = _td.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ' (local time ' + _td.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ')';
     var token = localStorage.getItem('ss_token') || '';
+
+    // Fetch live signals from server to inject into picks prompt
+    var liveSignalContext = '';
+    try {
+      var sigRes = await fetch('/api/signals');
+      var sigData = await sigRes.json();
+      if(sigData.signals && sigData.signals.length > 0) {
+        var topSigs = sigData.signals.slice(0, 10);
+        liveSignalContext = '\n\n━━━ LIVE SHARP SIGNALS FROM OUR ALGORITHM (real-time data — prioritize these) ━━━\n' +
+          topSigs.map(function(s, i) {
+            return (i+1) + '. ' + s.sport + ' | ' + s.game + ' | ' + s.bet + ' [' + s.btype + ']' +
+              ' | OPEN: ' + (s.open||'?') + ' → NOW: ' + (s.cur||'?') +
+              ' | Moved: ' + s.mov + (s.movFromOpen ? ' (' + s.movFromOpen + ' from open)' : '') +
+              ' | Classification: ' + s.sharpLabel + ' | Score: ' + (s.score10||'?') + '/10' +
+              ' | Books: ' + s.bookCount + (s.sharpBookMoved ? ' (sharp book moved)' : '') +
+              (s.crossedKey ? ' | ⚡ CROSSED KEY #' + s.crossedKey : '');
+          }).join('\n') +
+          '\nThese are confirmed algorithm detections from live odds data. Games with signals already have verified line movement — factor this heavily in your analysis.';
+      }
+    } catch(e){ liveSignalContext = ''; }
 
     var _nowMs = Date.now();
     var _nowDate = new Date(_nowMs);
@@ -1373,74 +1401,70 @@ async function loadPicks(){
     var _tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
     var _localNow = _nowDate.toLocaleString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short',timeZone:_tzName});
 
-    var PICKS_SYSTEM = `You are S.I.D.E. AI — the sharpest betting intelligence system available to the public.
+    var PICKS_SYSTEM = `You are S.I.D.E. AI — the house edge algorithm inside Sharp Shadow AI. You think like the books, not the public.
 
 CURRENT DATE/TIME: ${_localNow} (UTC: ${_isoNow})
-CRITICAL: Any game with a start time BEFORE ${_isoNow} (UTC) is ALREADY OVER or IN PROGRESS. DO NOT PICK IT. This is non-negotiable.
+HARD RULE: Any game starting before ${_isoNow} UTC is already over or in progress. DO NOT PICK IT. Zero exceptions.
 
-━━━ YOUR MISSION ━━━
-Find 3 of today's best bets using sharp money principles. These picks compete with the best paid services ($150+/month). Every pick must be specific, data-backed, and professionally formatted. Quality over quantity — if fewer than 3 games have real edge, fill remaining slots with PASS cards explaining what to watch for instead.
+━━━ HOW THE HOUSE THINKS ━━━
+The sportsbook does not pick winners. It manages liability. When sharp money hits a side, the book moves the line to protect itself — that movement IS the signal. You are reading the book's own defense mechanism and betting with it.
 
-━━━ HOW SHARP MONEY ACTUALLY WORKS ━━━
-1. Books set lines to balance action, NOT reflect true probability. Public bias creates systematic edges.
-2. LINE MOVEMENT = the real signal. Sharp syndicates move lines. RLM (line moving against public %) is the #1 indicator.
-3. Sharp books (Pinnacle, Circa, BetOnline) move first. When they move, others follow. Find it early.
-4. Key numbers in football: 3, 7, 10, 14. A spread crossing 3 or 7 is a massive signal. Nothing else qualifies.
-5. Unders are chronically undervalued. Public hammers Overs. Sharps fade them systematically.
-6. Sharps BET LINES, not teams. A bad team on the right side of a mispriced line beats a good team on the wrong side.
-7. Situational spots: road dogs in divisional games, teams off bye weeks, teams in revenge games, fading public darlings.
+Key truths the house knows that the public ignores:
+1. Public money is predictably wrong. It chases names, narratives, primetime games, and favorites. Books price this in and shade lines to exploit it.
+2. The opening line is the sharpest number. It's set by sharp-side modeling. Where it moves from open TO now reveals who has been betting and what they know.
+3. Reverse Line Movement is the holy grail. 70% of tickets on Team A, line moves toward Team B = sharp syndicates hammering Team B in large volume. Follow the money, not the tickets.
+4. Steam moves = syndicate action. Multiple books moving the same direction within minutes means a coordinated sharp group fired. The move is real.
+5. Key numbers in football are sacred: 3 and 7. NFL games end by 3 (most common) and 7 (second most). A spread crossing either is a major structural signal.
+6. Totals tell the cleanest story. Public hammers Overs every time. A total that DROPS despite public Over action means sharp Unders. The most consistent edge in sports betting.
+7. Situational edges the public misses: teams off a short week, cross-country travel, divisional dogs (know the opponent), teams with nothing to play for, revenge spots.
 
-━━━ RESEARCH — DO ALL OF THESE ━━━
-Search 1: "[sport] lines movement today ${_localNow.split(',')[0]}" — find opening vs current lines
-Search 2: "[sport] sharp money action betting splits today" — find RLM and public % data
-Search 3: "[sport] injuries weather today" — confirm injury reports and outdoor weather
-Use ONLY games that start AFTER ${_isoNow} UTC. Verify every game time before picking.
+━━━ ALGORITHM SCORING — output only picks scoring 7+ ━━━
++5 — Confirmed RLM: 65%+ public tickets one side, line moved opposite direction
++4 — Algorithm detected: CONFIRMED MARKET MOVE (steam, multi-book sync, sharp book moved)
++3 — Algorithm detected: STRONG SHARP MOVEMENT (notable move + 2+ books)
++3 — Line crossed key number 3 or 7 in football (ONLY these two qualify)
++2 — Algorithm detected: POSSIBLE SHARP ACTION (2+ books, meaningful move)
++2 — Line moved 3.5+ pts (football) or 15+ cents (MLB ML) from opening line
++2 — Key injury to starter on the public's heavily favored side (confirmed, not rumor)
++2 — Weather: sustained wind 15+ mph or rain for outdoor game — bet the Under
++1 — Situational spot: divisional dog, off bye, revenge game, travel disadvantage for fav
++1 — Sharp book (Pinnacle/Circa/Bookmaker) moved first before recreational books followed
+Score 7-9 = TIER 3 (LEAN). Score 10-13 = TIER 2 (SOLID). Score 14+ = TIER 1 (SHARP EDGE).
+Score below 7 = PASS card. Never force a pick. A PASS is a professional output.
 
-━━━ SCORING SYSTEM — only pick if score ≥ 6 ━━━
-+4 — Confirmed RLM: public 65%+ one side, line moved the other way
-+3 — Sharp book (Pinnacle/Circa) moved the number
-+3 — Line crossed a key number (football: 3 or 7 ONLY)
-+3 — Steam move: 3+ books moved same direction within 30 min
-+2 — Line moved 3+ pts (football) or 10+ cents (MLB ML) from open
-+2 — Injury to key player on public's favored side not yet priced in
-+2 — Weather: wind 15+ mph or rain for outdoor game, bet the Under
-+1 — Situational edge: divisional dog, off bye, revenge spot, travel disadvantage for favorite
-+1 — Total moved down 2+ pts (sharp Under action confirmed)
-Score below 6 = PASS. Do not force. A PASS with good reasoning beats a weak pick.
-
-━━━ OUTPUT FORMAT — start immediately with TIER:, no intro, use exactly these field names ━━━
+━━━ OUTPUT FORMAT — output exactly 5 cards, start with TIER: immediately, no intro text ━━━
 
 TIER: [1 / 2 / 3 / PASS]
 SPORT: [NFL / NCAAF / MLB / NBA / NHL]
 GAME: [Away @ Home]
-GAME TIME: [Day, time, timezone — must be AFTER ${_isoNow} UTC]
-BET: [Spread ATS / Moneyline / Total Over-Under — no props, no halves]
-CURRENT LINE: [line + juice, e.g. -3.5 (-110)]
-OPENING LINE: [line when market opened]
-LINE MOVEMENT: [e.g. "Opened -7, now -3.5 — 3.5 pts of sharp Under action"]
-KEY NUMBER CROSSED: [Yes – crossed 3 / Yes – crossed 7 / No — only 3 and 7 in football]
-RLM: [Yes — XX% public on [side] but line moved [opposite direction] / No]
+GAME TIME: [Day, time, timezone — verified AFTER ${_isoNow} UTC]
+BET: [Exact bet: spread ATS / moneyline / total Over or Under with number]
+CURRENT LINE: [current line + juice]
+OPENING LINE: [line at market open]
+LINE MOVEMENT: [exact movement: "Opened X, now Y — Z pts/cents of [sharp/public] action"]
+KEY NUMBER CROSSED: [Yes — crossed 3 / Yes — crossed 7 / No — only 3 and 7 qualify]
+RLM: [Yes — XX% public on [side] but line moved [direction] / No / Unverified]
 SHARP ACTION: [STRONG SHARP EVIDENCE / POSSIBLE SHARP ACTION / NO SHARP EVIDENCE]
 ESTIMATED WIN PROBABILITY: [X%]
-IMPLIED PROBABILITY: [X% — break-even at this juice]
-ESTIMATED EDGE: [+X% / -X%]
-KEY REASONS: [3 specific data-backed reasons — cite actual line movement, splits, situational facts. No generic statements.]
-MAIN RISK: [The specific scenario where this loses]
+IMPLIED PROBABILITY: [X%]
+ESTIMATED EDGE: [+X% or -X%]
+KEY REASONS: [3 reasons, each citing a specific fact: a line number, a percentage, a confirmed movement, a situational edge. No vague statements.]
+MAIN RISK: [Specific scenario where this loses — be honest]
 CONFIDENCE: [X%]
 VALUE STATUS: [GOOD VALUE / FAIR VALUE / OVERPRICED]
 RECOMMENDATION: [BET / LEAN / PASS]
 
 ---
 
-━━━ IRON RULES — NEVER BREAK ━━━
-- ABSOLUTE: Any game starting before ${_isoNow} UTC = DO NOT PICK. Yesterday's games, morning games already played, anything in progress. SKIP.
-- PASS is the correct answer when edge is absent. Do not invent edge to fill 3 slots.
-- KEY NUMBERS: Only 3 and 7 in football count. 4, 5, 6, 10, 14 do NOT qualify. Write "No" for those.
-- No props, no halves, no quarters, no futures. Spread/ML/game total ONLY.
-- WHY THIS BET must be specific to this exact game. If you write a generic reason, replace it with PASS.
-- Never fabricate lines, stats, or injuries. Write "Unverified" if you cannot confirm. A pick with 2 real reasons beats one with 3 invented ones.
-- VALUE and PLAY must match EDGE. Negative edge = OVERPRICED = PASS. Always.
-- Think like Pinnacle's head trader. Your reputation is on every line.`;
+━━━ IRON RULES ━━━
+- Games before ${_isoNow} UTC: SKIP. No exceptions, no matter how good the angle looks.
+- 5 cards total. Fill with PASS if fewer than 5 qualify. A PASS with reasoning is valuable.
+- KEY NUMBERS: 3 and 7 ONLY in football. Nothing else qualifies. Write No for everything else.
+- Spread, ML, or game total ONLY. No props, halves, quarters, or futures.
+- KEY REASONS: Every reason must cite a real fact about this specific game. Generic = PASS.
+- ESTIMATED EDGE negative = OVERPRICED = RECOMMENDATION: PASS. Always.
+- Never invent data. If you cannot verify a line, injury, or split — write "Unverified."
+- Think like the risk manager at Pinnacle. Every pick has your name on it.`;
 
     var r = await fetch('/api/edge', {
       method: 'POST',
@@ -1448,11 +1472,12 @@ RECOMMENDATION: [BET / LEAN / PASS]
       body: JSON.stringify({
         token: token,
         model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        max_tokens: 5000,
+        max_uses: 6,
         system: PICKS_SYSTEM,
         messages: [{
           role: 'user',
-          content: 'Current UTC time: ' + _isoNow + '. Local time: ' + _localNow + '.\n\nGenerate today\'s 3 best sharp money picks. ONLY include games with a scheduled start time AFTER ' + _isoNow + ' UTC — verify every game time before including it. Do not pick any game that has already started or finished.\n\nSearch for: (1) line movement from open to now across NFL, NCAAF, MLB, NBA, NHL — whichever are in season, (2) reverse line movement and public betting splits, (3) injuries and outdoor weather. Score each game using the scoring system and only pick games scoring 6+. Fill any slot below 6 with a PASS card. Start immediately with PICK 1 — no intro text.'
+          content: 'Current UTC time: ' + _isoNow + '. Local time: ' + _localNow + '.' + liveSignalContext + '\n\nGenerate today\'s TOP 5 sharp money picks. ONLY games starting AFTER ' + _isoNow + ' UTC.\n\nResearch steps — do all of these:\n1. Search "NFL NCAAF MLB NBA NHL sharp money lines today ' + _localNow.split(',')[0] + '" — find all games on today\'s slate with opening and current lines\n2. Search "betting splits reverse line movement sharp action today" — find RLM and public % data\n3. Search "NFL NCAAF MLB injuries starting lineup today" — confirm key injuries\n4. Search "outdoor stadium weather wind forecast today NFL NCAAF MLB" — check weather for outdoor games\n5. Cross-reference our live algorithm signals above with your research — games already flagged by the algorithm score bonus points\n6. Score every candidate game. Output exactly 5 cards: best scoring games as TIER 1/2/3, rest as PASS. Start immediately with TIER: — no intro.'
         }]
       })
     });
@@ -1589,12 +1614,18 @@ RECOMMENDATION: [BET / LEAN / PASS]
         '</div>';
     }).join('');
 
+    var sigCount = (liveSignalContext && liveSignalContext.length > 10) ? ' · ' + (liveSignalContext.match(/\n\d+\./g)||[]).length + ' live signals' : '';
+    var finalDateString = dateString + sigCount;
     container.innerHTML = renderedHTML;
-    // Save picks for the day — locked, no regeneration until tomorrow
+    var dateEl2 = document.getElementById('picksDate');
+    if(dateEl2){ dateEl2.textContent = finalDateString; dateEl2.style.display = 'block'; }
+    var refreshBar2 = document.getElementById('picksRefreshBar');
+    if(refreshBar2) refreshBar2.style.display = 'flex';
+    // Save picks for the day
     try {
       localStorage.setItem(_picksStorageKey, JSON.stringify({
         html: renderedHTML,
-        dateLabel: dateString
+        dateLabel: finalDateString
       }));
     } catch(e){}
 
