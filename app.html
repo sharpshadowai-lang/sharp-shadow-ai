@@ -1284,11 +1284,30 @@ function sendEdge(){
   if(btn){btn.disabled = true; btn.textContent = '...';}
   addMsg(msg, 'user');
   var typing = addTyping();
-  edgeHistory.push({role:'user',content:msg});
   var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ['+s.btype+'] ('+s.sharpLabel+', score '+(s.score10||'?')+'/10, moved '+s.mov+(s.movFromOpen?' / '+s.movFromOpen+' from open':'')+', '+s.bookCount+' books'+(s.sharpBookMoved?' / sharp book moved':'')+')';}).join('; ');
   var _dn = new Date();
   var _userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
   var _userTZShort = _dn.toLocaleTimeString('en-US',{timeZoneName:'short',timeZone:_userTZ}).split(' ').pop(); // e.g. "MST"
+  // If user mentions a time, append ET equivalent so AI never misinterprets the timezone
+  var msgWithTZ = msg;
+  var timePattern = /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|AM|PM)/g;
+  var tzMatch;
+  var timeAnnotations = [];
+  while((tzMatch = timePattern.exec(msg)) !== null) {
+    var rawH = parseInt(tzMatch[1]);
+    var rawM = parseInt(tzMatch[2]||'0');
+    var ampm = tzMatch[3].toLowerCase();
+    var h24 = ampm === 'pm' && rawH !== 12 ? rawH + 12 : (ampm === 'am' && rawH === 12 ? 0 : rawH);
+    // Build a date at that local wall-clock time, then read it back as ET
+    var testDate = new Date(_dn.getFullYear(), _dn.getMonth(), _dn.getDate(), h24, rawM, 0);
+    var etStr = testDate.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York',hour12:true});
+    var localStr = tzMatch[0].toUpperCase();
+    timeAnnotations.push(localStr + ' ' + _userTZShort + ' = ' + etStr + ' ET');
+  }
+  if(timeAnnotations.length > 0) {
+    msgWithTZ = msg + '\n[TIME CONTEXT: ' + timeAnnotations.join(', ') + ' — always use the ET times above when searching for game kickoffs]';
+  }
+  edgeHistory.push({role:'user',content:msgWithTZ});
   var todayForChat = _dn.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:_userTZ}) +
     ' — local time ' + _dn.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:_userTZ}) + ' ' + _userTZShort +
     ' (timezone: ' + _userTZ + ', UTC offset: ' + (function(){var o=-_dn.getTimezoneOffset();return (o>=0?'+':'')+Math.floor(o/60)+':'+(Math.abs(o)%60+'').padStart(2,'0');})() + ')' +
