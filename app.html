@@ -589,37 +589,32 @@ body{overflow-y:auto}
     <!-- LEFT: SIGNALS -->
     <div class="signals-panel mob-active" id="mobileSignalsPanel">
       <div class="panel-header">
-        <div class="ph-title">⚡ LIVE SIGNALS</div>
+        <div class="ph-title">🔥 SHARP SIGNALS</div>
         <div class="ph-count" id="sigCount">0 ACTIVE</div>
       </div>
       <div class="signal-filters">
-        <button class="sf-btn active" onclick="filterSigs(this,'all')">ALL</button>
+        <button class="sf-btn active" onclick="filterSigs(this,'all')">ALL SIGNALS</button>
         <button class="sf-btn" onclick="filterSigs(this,'steam')">🔥 STEAM</button>
         <button class="sf-btn" onclick="filterSigs(this,'sharp')">⚡ SHARP</button>
-        <button class="sf-btn" onclick="filterSigs(this,'reverse')">↩ REVERSE</button>
       </div>
 
       <!-- HOW TO READ SIGNALS -->
       <div class="sig-guide">
         <button class="sig-guide-toggle" onclick="toggleSigGuide()">
-          <span>📖 HOW TO BET THESE SIGNALS</span>
+          <span>📖 HOW TO READ THESE SIGNALS</span>
           <span id="sigGuideArrow">▼</span>
         </button>
         <div class="sig-guide-body" id="sigGuideBody" style="display:none">
           <div class="sig-guide-item">
             <div class="sig-guide-label steam-color">🔥 STEAM MOVE</div>
-            <div class="sig-guide-desc">Multiple books move the same line fast - sharp money hit hard. <strong>Bet the side shown immediately</strong> before the line moves further against you. This is the strongest signal.</div>
+            <div class="sig-guide-desc">The strongest signal. 3+ books moved the same line in sync — sharp syndicates hit simultaneously. Act fast: the number gets worse as more books follow. Bet the side shown.</div>
           </div>
           <div class="sig-guide-item">
-            <div class="sig-guide-label sharp-color">⚡ SHARP SIGNAL</div>
-            <div class="sig-guide-desc">A single book moved the line - sharp bettors got their money down. <strong>Bet the side shown</strong>. Line will likely follow at other books within minutes.</div>
-          </div>
-          <div class="sig-guide-item">
-            <div class="sig-guide-label reverse-color">↩ REVERSE LINE MOVEMENT</div>
-            <div class="sig-guide-desc">Public is betting one side heavily but the line moved the other way - sharp money is fading the public. <strong>Bet the side shown</strong> (against the public). This is a classic sharp vs public situation.</div>
+            <div class="sig-guide-label sharp-color">⚡ SHARP ACTION</div>
+            <div class="sig-guide-desc">A sharp-friendly book (Pinnacle, Circa) or 2+ major books moved the same direction with supporting evidence. Sharp bettors got their money down. Line likely follows at other books.</div>
           </div>
           <div class="sig-guide-tip">
-            💡 <strong>Pro tip:</strong> Always check the live odds panel to find the best number across books before placing your bet.
+            💡 <strong>Quality over quantity.</strong> We only surface real signals — moves that crossed multiple books or key numbers with meaningful size. If the panel is quiet, the market is quiet. That's by design.
           </div>
         </div>
       </div>
@@ -628,7 +623,7 @@ body{overflow-y:auto}
         <div class="empty-signals">
           <div class="es-icon">📡</div>
           <div class="es-title">MONITORING LIVE LINES</div>
-          <div class="es-sub">Tracking <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games across 10+ books.<br>Steam moves appear here instantly<br>when sharp money is detected.<br><br>Best signal times:<br>9am-12pm daily · NFL Sundays<br>Evening before night games</div>
+          <div class="es-sub">Tracking <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games across 10+ books.<br><br>We only surface <strong style="color:var(--cyan)">real moves</strong>:<br>3+ books in sync · sharp book first<br>Key number crossings · Notable size<br><br>A quiet panel means the market is quiet.<br>That's the point.</div>
         </div>
       </div>
     </div>
@@ -1197,43 +1192,51 @@ function renderSignals(){
     return;
   }
   list.innerHTML = filtered.map(function(s, i){
-    return '<div class="signal-card ' + s.type + '" onclick="askEdge(\'Tell me about the ' + s.game + ' ' + s.bet + ' signal and whether I should bet it\')">' +
-      '<div class="sc-top"><div class="sc-type ' + s.type + '">' + s.type.toUpperCase() + '</div><div class="sc-sport">' + s.sport + '</div></div>' +
+    var labelColor = s.type === 'steam' ? 'var(--cyan)' : 'var(--green)';
+    var borderColor = s.type === 'steam' ? 'rgba(0,245,255,.5)' : 'rgba(0,255,136,.5)';
+    var keyNumBadge = s.crossedKey ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(240,180,41,.15);border:1px solid rgba(240,180,41,.4);color:#f0b429;padding:2px 7px;letter-spacing:.5px">⚡ THRU KEY #' + s.crossedKey + '</span>' : '';
+    var sharpBookBadge = s.sharpBookMoved ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);color:var(--green);padding:2px 7px;letter-spacing:.5px">PINNACLE MOVED</span>' : '';
+    return '<div class="signal-card ' + s.type + '" onclick="askEdge(\'Tell me about the ' + s.game + ' ' + s.bet + ' sharp signal and whether I should bet it\')">' +
+      // Header: label + sport
+      '<div class="sc-top">' +
+        '<div class="sc-type ' + s.type + '" style="font-size:10px;font-weight:800;letter-spacing:.5px">' + (s.sharpLabel || s.type.toUpperCase()) + '</div>' +
+        '<div class="sc-sport">' + s.sport + ' · ' + s.gtime + '</div>' +
+      '</div>' +
+      // Game
       '<div class="sc-game">' + s.game + '</div>' +
-      '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">SHARP ACTION ON</div>' +
-      '<div class="sc-bet">▸ ' + s.bet + '</div>' +
-      '<div class="sc-bet-label" style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px">' + (s.btype === 'Moneyline' ? 'ML PRICE MOVED' : 'LINE MOVED') + '</div>' +
-      '<div class="sc-mov-row">' +
-        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin-right:2px">OPEN</span>' +
-        '<span class="sc-open" style="font-size:11px;font-weight:700;color:var(--text)">' + s.open + '</span>' +
-        '<span class="sc-arrow" style="color:var(--muted);margin:0 4px">→</span>' +
-        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin-right:2px">NOW</span>' +
-        '<span class="sc-cur">' + s.cur + '</span>' +
-        '<span class="sc-mov" style="color:var(--green);margin-left:auto">' + s.mov + '</span>' +
+      // Bet side - bold and clear
+      '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">SHARP SIDE</div>' +
+      '<div class="sc-bet" style="color:' + labelColor + ';font-size:14px;margin-bottom:8px">▸ ' + s.bet + ' <span style="font-size:10px;color:var(--muted);font-family:Share Tech Mono,monospace">(' + s.btype + ')</span></div>' +
+      // Line movement — the key data
+      '<div style="background:rgba(0,0,0,.3);border:1px solid var(--b1);padding:8px 10px;margin-bottom:8px">' +
+        '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">LINE MOVEMENT</div>' +
+        '<div style="display:flex;align-items:center;gap:6px;font-family:Share Tech Mono,monospace">' +
+          '<span style="font-size:9px;color:var(--muted)">OPEN</span>' +
+          '<span style="font-size:14px;font-weight:700;color:var(--text);font-family:Orbitron,sans-serif">' + s.open + '</span>' +
+          '<span style="color:var(--muted);font-size:14px;margin:0 2px">→</span>' +
+          '<span style="font-size:9px;color:var(--muted)">NOW</span>' +
+          '<span style="font-size:14px;font-weight:700;color:' + labelColor + ';font-family:Orbitron,sans-serif">' + s.cur + '</span>' +
+          '<span style="margin-left:auto;font-size:12px;font-weight:700;color:var(--green)">' + (s.movFromOpen ? s.movFromOpen : s.mov) + '</span>' +
+        '</div>' +
       '</div>' +
-      (s.movFromOpen ? '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#ffd700;margin-bottom:4px">📐 ' + s.movFromOpen + ' total from open</div>' : '') +
-      '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-        '<span style="color:var(--muted)">📚 ' + (s.bookCount||1) + ' BOOK' + ((s.bookCount||1)>1?'S':'') + ' MOVED</span>' +
-        '<span style="color:' + (s.str>=6?'#00ff88':s.str>=5?'#00e5ff':s.str>=3?'#ffd700':'var(--muted)') + '">' + (s.sharpLabel||'NO SHARP EVIDENCE') + '</span>' +
-        (s.score10 ? '<span style="margin-left:auto;background:rgba(0,0,0,.4);padding:2px 7px;border-radius:4px;color:' + (s.score10>=8?'#00ff88':s.score10>=6?'#00e5ff':s.score10>=4?'#ffd700':'var(--muted)') + ';font-weight:700">' + s.score10 + '/10</span>' : '') +
+      // Badges row
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">' +
+        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,0,0,.4);border:1px solid var(--b1);color:var(--muted);padding:2px 7px">' + (s.bookCount||2) + ' BOOKS</span>' +
+        keyNumBadge +
+        sharpBookBadge +
+        (s.isRLM ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(179,71,255,.08);border:1px solid rgba(179,71,255,.3);color:var(--purple);padding:2px 7px">↩ FADING PUBLIC</span>' : '') +
+        (s.isSharpMoney ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,245,255,.06);border:1px solid rgba(0,245,255,.2);color:var(--cyan);padding:2px 7px">💰 BIG MONEY IN</span>' : '') +
       '</div>' +
-      (s.hasBetData ? (
-        '<div style="font-family:Share Tech Mono,monospace;font-size:10px;margin:4px 0 6px;padding:7px 10px;background:rgba(0,0,0,.35);border-left:3px solid ' + (s.isRLM ? 'var(--purple)' : s.isSharpMoney ? 'var(--cyan)' : 'var(--muted2)') + '">' +
-          // RLM badge + reason
-          (s.isRLM ? '<div style="color:var(--purple);font-weight:700;margin-bottom:4px;font-size:11px">🔁 REVERSE LINE MOVEMENT</div>' +
-            '<div style="color:var(--muted);margin-bottom:5px;line-height:1.4">' + (s.rlmReason||'') + '</div>' : '') +
-          // Sharp money badge + reason
-          (s.isSharpMoney ? '<div style="color:var(--cyan);font-weight:700;margin-bottom:4px;font-size:11px">💰 SHARP MONEY DETECTED</div>' +
-            '<div style="color:var(--muted);margin-bottom:5px;line-height:1.4">' + (s.sharpMoneyReason||'') + '</div>' : '') +
-          // Always show the numbers
-          '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:2px">' +
-            '<span style="color:var(--muted)">PUBLIC BETS: <span style="color:' + (s.bfor <= 40 ? 'var(--green)' : s.bfor >= 60 ? 'var(--red)' : 'var(--yellow)') + ';font-weight:700">' + s.bfor + '%</span></span>' +
-            '<span style="color:var(--muted)">PUBLIC MONEY: <span style="color:' + (s.mfor <= 40 ? 'var(--green)' : s.mfor >= 60 ? 'var(--red)' : 'var(--yellow)') + ';font-weight:700">' + s.mfor + '%</span></span>' +
-            (s.sharpGap !== 0 ? '<span style="color:var(--muted)">GAP: <span style="color:' + (s.sharpGap >= 15 ? 'var(--cyan)' : s.sharpGap <= -15 ? 'var(--red)' : 'var(--muted)') + ';font-weight:700">' + (s.sharpGap > 0 ? '+' : '') + s.sharpGap + '%</span></span>' : '') +
+      // Score bar
+      (s.score10 ? (
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+          '<div style="flex:1;background:rgba(0,0,0,.4);height:3px;border-radius:2px;overflow:hidden">' +
+            '<div style="height:100%;width:' + (s.score10*10) + '%;background:linear-gradient(90deg,' + (s.score10>=8?'var(--green)':s.score10>=6?'var(--cyan)':'var(--yellow)') + ',transparent);transition:width 1s"></div>' +
           '</div>' +
+          '<span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;color:' + (s.score10>=8?'var(--green)':s.score10>=6?'var(--cyan)':'var(--yellow)') + '">' + s.score10 + '/10</span>' +
         '</div>'
       ) : '') +
-      '<div class="sc-footer"><span>' + (s.books ? s.books[0] : '') + '</span><span>' + (s.ago || 0) + 'm ago</span></div>' +
+      '<div class="sc-footer"><span style="color:var(--muted2)">Tap to analyze with S.I.D.E. AI →</span><span>' + (s.ago || 0) + 'm ago</span></div>' +
     '</div>';
   }).join('');
   // Animate bars
@@ -1283,8 +1286,14 @@ function sendEdge(){
   var typing = addTyping();
   edgeHistory.push({role:'user',content:msg});
   var sigCtx = signals.slice(0,5).map(function(s){return s.sport+': '+s.bet+' ['+s.btype+'] ('+s.sharpLabel+', score '+(s.score10||'?')+'/10, moved '+s.mov+(s.movFromOpen?' / '+s.movFromOpen+' from open':'')+', '+s.bookCount+' books'+(s.sharpBookMoved?' / sharp book moved':'')+')';}).join('; ');
-  var _dn = new Date(); var todayForChat = _dn.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ' (local time ' + _dn.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}) + ')';
-  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst. Today is ' + todayForChat + '. You have live web search — use it to get current lines, injuries, and news before answering.\n\nMULTI-GAME RULE: When the user asks for picks, bets, or analysis for multiple games (e.g. "college football games tonight", "best bets today", "all sharp plays"), you MUST cover ALL qualifying games — not just one. Search for each game, analyze each one separately, and give a BOTTOM LINE for every single game. Do not stop after the first game. Cover every game that fits the request.\n\nCRITICAL RULE: Always end every response with a clear, direct bottom line. No exceptions. If multiple games, give a BOTTOM LINE for EACH game, then a final summary of your top pick. Format it like this:\n\n🎯 BOTTOM LINE: [BET / LEAN / FADE / PASS] — [specific bet, e.g. "Chiefs -3.5" or "Under 44.5"] at [current line/odds]. [One sentence why.]\n\nDo your analysis first, then ALWAYS give the bottom line(s). The user needs to know what to actually do, not just get information. Be direct like a sharp bettor, not a disclaimer machine. Use probability and edge when relevant but always land on a clear recommendation.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet - lines appear stable');
+  var _dn = new Date();
+  var _userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  var _userTZShort = _dn.toLocaleTimeString('en-US',{timeZoneName:'short',timeZone:_userTZ}).split(' ').pop(); // e.g. "MST"
+  var todayForChat = _dn.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:_userTZ}) +
+    ' — local time ' + _dn.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:_userTZ}) + ' ' + _userTZShort +
+    ' (timezone: ' + _userTZ + ', UTC offset: ' + (function(){var o=-_dn.getTimezoneOffset();return (o>=0?'+':'')+Math.floor(o/60)+':'+(Math.abs(o)%60+'').padStart(2,'0');})() + ')' +
+    ' — UTC: ' + _dn.toISOString();
+  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst. Today is ' + todayForChat + '. You have live web search — use it to get current lines, injuries, and news before answering.\n\nTIMEZONE RULE: The user\'s local timezone is ' + _userTZ + ' (' + _userTZShort + ', UTC' + (function(){var o=-_dn.getTimezoneOffset();return (o>=0?'+':'')+Math.floor(o/60)+':'+(Math.abs(o)%60+'').padStart(2,'0');})() + '). When the user asks for games at a specific time (e.g. "12:30 PM", "1 PM games"), they mean their LOCAL time. Always convert game kickoff times to the user\'s timezone before answering. If a game kicks off at 3:30 PM ET, that is 1:30 PM MST. Always show times in BOTH ET and the user\'s local time so there is no confusion.\n\nMULTI-GAME RULE: When the user asks for picks, bets, or analysis for multiple games (e.g. "college football games tonight", "best bets today", "all sharp plays"), you MUST cover ALL qualifying games — not just one. Search for each game, analyze each one separately, and give a BOTTOM LINE for every single game. Do not stop after the first game. Cover every game that fits the request.\n\nCRITICAL RULE: Always end every response with a clear, direct bottom line. No exceptions. If multiple games, give a BOTTOM LINE for EACH game, then a final summary of your top pick. Format it like this:\n\n🎯 BOTTOM LINE: [BET / LEAN / FADE / PASS] — [specific bet, e.g. "Chiefs -3.5" or "Under 44.5"] at [current line/odds]. [One sentence why.]\n\nDo your analysis first, then ALWAYS give the bottom line(s). The user needs to know what to actually do, not just get information. Be direct like a sharp bettor, not a disclaimer machine. Use probability and edge when relevant but always land on a clear recommendation.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet - lines appear stable');
   var chatToken = localStorage.getItem('ss_token') || '';
   fetch('/api/edge', {
     method: 'POST',
@@ -1420,11 +1429,10 @@ Key truths the house knows that the public ignores:
 
 ━━━ ALGORITHM SCORING — output only picks scoring 7+ ━━━
 +5 — Confirmed RLM: 65%+ public tickets one side, line moved opposite direction
-+4 — Algorithm detected: CONFIRMED MARKET MOVE (steam, multi-book sync, sharp book moved)
-+3 — Algorithm detected: STRONG SHARP MOVEMENT (notable move + 2+ books)
++5 — Algorithm detected: STEAM MOVE (3+ books in sync, confirmed market move)
++4 — Algorithm detected: SHARP ACTION (notable move, 2+ books, sharp book moved)
 +3 — Line crossed key number 3 or 7 in football (ONLY these two qualify)
-+2 — Algorithm detected: POSSIBLE SHARP ACTION (2+ books, meaningful move)
-+2 — Line moved 3.5+ pts (football) or 15+ cents (MLB ML) from opening line
++2 — Line moved 3.5+ pts (football) or 20+ cents (MLB ML) from opening line
 +2 — Key injury to starter on the public's heavily favored side (confirmed, not rumor)
 +2 — Weather: sustained wind 15+ mph or rain for outdoor game — bet the Under
 +1 — Situational spot: divisional dog, off bye, revenge game, travel disadvantage for fav
@@ -1444,7 +1452,7 @@ OPENING LINE: [line at market open]
 LINE MOVEMENT: [exact movement: "Opened X, now Y — Z pts/cents of [sharp/public] action"]
 KEY NUMBER CROSSED: [Yes — crossed 3 / Yes — crossed 7 / No — only 3 and 7 qualify]
 RLM: [Yes — XX% public on [side] but line moved [direction] / No / Unverified]
-SHARP ACTION: [STRONG SHARP EVIDENCE / POSSIBLE SHARP ACTION / NO SHARP EVIDENCE]
+SHARP ACTION: [STEAM MOVE (3+ books) / SHARP ACTION (sharp book + move) / NO SHARP EVIDENCE]
 ESTIMATED WIN PROBABILITY: [X%]
 IMPLIED PROBABILITY: [X%]
 ESTIMATED EDGE: [+X% or -X%]
