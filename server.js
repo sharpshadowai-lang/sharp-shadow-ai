@@ -126,6 +126,8 @@ let liveSignals = [];
 let gamesCache = [];
 let lastUpdated = null;
 let anCache = {}; // Action Network bet % cache: keyed by normalized team name
+let pinnacleLines = {}; // Pinnacle's current lines — used as the sharp benchmark
+let sharpGaps = [];    // Books lagging behind Pinnacle — the real +EV signals
 
 // Only fetch sports that have active seasons — saves Odds API quota
 // World Cup and NCAAB are off-season; add them back when live
@@ -150,9 +152,10 @@ async function fetchOdds() {
       const res = await axios.get(url, {
         params: {
           apiKey: apiKey,
-          regions: 'us',
+          regions: 'us,eu',  // eu needed to include Pinnacle
           markets: 'spreads,totals,h2h',
-          oddsFormat: 'american'
+          oddsFormat: 'american',
+          bookmakers: 'draftkings,fanduel,betmgm,caesars,pointsbet,betrivers,pinnacle,williamhill_us,bovada,betonlineag'
         }
       });
       var remaining = res.headers['x-requests-remaining'] || 'unknown';
@@ -870,6 +873,171 @@ function detectMoves(games) {
   return found;
 }
 
+// ===== PINNACLE GAP DETECTION =====
+// Core concept: Pinnacle = sharp price. Soft books lagging behind = +EV opportunity.
+// A gap means a soft book hasn't caught up to where sharp money already pushed the line.
+function detectPinnacleGaps(games) {
+  var gaps = [];
+  var now = Date.now();
+
+  var SOFT_BOOKS = {
+    'draftkings':       'DraftKings',
+    'fanduel':          'FanDuel',
+    'betmgm':           'BetMGM',
+    'caesars':          'Caesars',
+    'pointsbet':        'PointsBet',
+    'betrivers':        'BetRivers',
+    'williamhill_us':   'WilliamHill',
+    'bovada':           'Bovada',
+    'betonlineag':      'BetOnline'
+  };
+
+  // Minimum gap to surface (avoid noise from vig differences)
+  var MIN_SPREAD_GAP  = 0.5;  // half point or more
+  var MIN_TOTAL_GAP   = 0.5;
+  var MIN_ML_GAP      = 10;   // 10 cents on ML (e.g. -110 vs -120)
+
+  for (var gi = 0; gi < games.length; gi++) {
+    var game = games[gi];
+    if (!game.bookmakers) continue;
+
+    var gameTs = game.commence_time ? new Date(game.commence_time).getTime() : 0;
+    if (gameTs && gameTs <= now) continue;
+    if (gameTs && gameTs > now + 7 * 24 * 60 * 60 * 1000) continue;
+
+    // Extract Pinnacle's lines for this game
+    var pinnacle = null;
+    for (var bi = 0; bi < game.bookmakers.length; bi++) {
+      if (game.bookmakers[bi].key === 'pinnacle') {
+        pinnacle = game.bookmakers[bi];
+        break;
+      }
+    }
+    if (!pinnacle || !pinnacle.markets) continue; // No Pinnacle data = skip
+
+    // Build Pinnacle line map: market → { away: pt, home: pt, over: pt }
+    var pinnLines = {};
+    for (var pm = 0; pm < pinnacle.markets.length; pm++) {
+      var mkt = pinnacle.markets[pm];
+      if (!mkt.outcomes) continue;
+      pinnLines[mkt.key] = {};
+      for (var oi = 0; oi < mkt.outcomes.length; oi++) {
+        var o = mkt.outcomes[oi];
+        if (o.name === game.away_team)  pinnLines[mkt.key].away  = { pt: o.point, price: o.price };
+        if (o.name === game.home_team)  pinnLines[mkt.key].home  = { pt: o.point, price: o.price };
+        if (o.name === 'Over')          pinnLines[mkt.key].over  = { pt: o.point, price: o.price };
+        if (o.name === 'Under')         pinnLines[mkt.key].under = { pt: o.point, price: o.price };
+      }
+    }
+
+    // Compare each soft book against Pinnacle
+    for (var bi = 0; bi < game.bookmakers.length; bi++) {
+      var book = game.bookmakers[bi];
+      if (!SOFT_BOOKS[book.key]) continue; // Skip Pinnacle itself and unknown books
+      if (!book.markets) continue;
+
+      for (var mi = 0; mi < book.markets.length; mi++) {
+        var mkt = book.markets[mi];
+        var pinn = pinnLines[mkt.key];
+        if (!pinn || !mkt.outcomes) continue;
+
+        var marketKey = mkt.key; // spreads, totals, h2h
+
+        for (var oi = 0; oi < mkt.outcomes.length; oi++) {
+          var o = mkt.outcomes[oi];
+          var side = null;
+          var pinnSide = null;
+
+          if (o.name === game.away_team && pinn.away)  { side = 'away'; pinnSide = pinn.away; }
+          if (o.name === game.home_team && pinn.home)  { side = 'home'; pinnSide = pinn.home; }
+          if (o.name === 'Over'  && pinn.over)         { side = 'over'; pinnSide = pinn.over; }
+          if (o.name === 'Under' && pinn.under)        { side = 'under'; pinnSide = pinn.under; }
+          if (!pinnSide) continue;
+
+          var gap = null;
+          var gapDesc = '';
+          var betValue = '';
+          var edge = 0;
+
+          if (marketKey === 'spreads' && o.point !== undefined && pinnSide.pt !== undefined) {
+            // Positive gap = soft book giving MORE points than Pinnacle (better for bettor)
+            var rawGap = (side === 'away') ? (o.point - pinnSide.pt) : (pinnSide.pt - o.point);
+            // Flip: if away team is -6 at soft book but -6.5 at Pinnacle, soft book is BETTER for away bettors
+            gap = o.point - pinnSide.pt;
+            var absGap = Math.abs(gap);
+            if (absGap < MIN_SPREAD_GAP) continue;
+            // Direction: positive gap on away = soft book favors away side
+            var betterSide = (gap > 0) ? o.name : (o.name === game.away_team ? game.home_team : game.away_team);
+            var softPt = o.point > 0 ? '+' + o.point : '' + o.point;
+            var pinnPt = pinnSide.pt > 0 ? '+' + pinnSide.pt : '' + pinnSide.pt;
+            gapDesc = SOFT_BOOKS[book.key] + ' has ' + o.name + ' at ' + softPt + ' vs Pinnacle ' + pinnPt + ' (' + (gap > 0 ? '+' : '') + gap.toFixed(1) + ' pts)';
+            betValue = softPt;
+            edge = absGap;
+
+          } else if (marketKey === 'totals' && o.point !== undefined && pinnSide.pt !== undefined) {
+            gap = o.point - pinnSide.pt;
+            var absGap = Math.abs(gap);
+            if (absGap < MIN_TOTAL_GAP) continue;
+            var softPt = '' + o.point;
+            var pinnPt = '' + pinnSide.pt;
+            gapDesc = SOFT_BOOKS[book.key] + ' has ' + o.name + ' at ' + softPt + ' vs Pinnacle ' + pinnPt + ' (' + (gap > 0 ? '+' : '') + gap.toFixed(1) + ' pts)';
+            betValue = softPt;
+            edge = absGap;
+
+          } else if (marketKey === 'h2h' && o.price !== undefined && pinnSide.price !== undefined) {
+            // ML: bigger price = worse for bettor (favorite getting shorter)
+            // If soft book has a BETTER (less negative) price, that's the value side
+            gap = o.price - pinnSide.price;
+            var absGap = Math.abs(gap);
+            if (absGap < MIN_ML_GAP) continue;
+            var softPr = o.price > 0 ? '+' + o.price : '' + o.price;
+            var pinnPr = pinnSide.price > 0 ? '+' + pinnSide.price : '' + pinnSide.price;
+            gapDesc = SOFT_BOOKS[book.key] + ' has ' + o.name + ' ML at ' + softPr + ' vs Pinnacle ' + pinnPr + ' (' + (gap > 0 ? '+' : '') + gap + ' cents)';
+            betValue = softPr;
+            edge = absGap;
+          } else {
+            continue;
+          }
+
+          var sport = getSportName(game.sportKey);
+          var mktLabel = marketKey === 'spreads' ? 'Spread' : marketKey === 'totals' ? 'Total' : 'Moneyline';
+          var edgeLabel = marketKey === 'h2h' ? (edge + ' cent ML gap') : (edge.toFixed(1) + ' pt gap');
+
+          // Score the gap: bigger = better
+          var score = Math.min(Math.round(edge * 4), 10);
+          if (edge >= 1.5 || (marketKey === 'h2h' && edge >= 25)) score = Math.min(score + 2, 10);
+
+          gaps.push({
+            id: 'gap_' + game.id + '_' + book.key + '_' + marketKey + '_' + side + '_' + now,
+            type: 'PINNACLE_GAP',
+            sport: sport,
+            sportKey: game.sportKey,
+            game: game.away_team + ' vs ' + game.home_team,
+            gameId: game.id,
+            commenceTime: game.commence_time,
+            book: SOFT_BOOKS[book.key],
+            bookKey: book.key,
+            market: mktLabel,
+            betSide: o.name,
+            betValue: betValue,
+            pinnacleValue: (pinnSide.pt !== undefined) ? (pinnSide.pt > 0 ? '+' + pinnSide.pt : '' + pinnSide.pt) : (pinnSide.price > 0 ? '+' + pinnSide.price : '' + pinnSide.price),
+            gap: gap,
+            edge: edge,
+            edgeLabel: edgeLabel,
+            description: gapDesc,
+            score: score,
+            timestamp: now
+          });
+        }
+      }
+    }
+  }
+
+  // Sort: biggest edge first
+  gaps.sort(function(a, b) { return b.edge - a.edge; });
+  return gaps;
+}
+
 // Fetch Action Network data every 30 min (runs are slow, avoid hammering)
 cron.schedule('*/30 * * * *', async function() {
   console.log('Fetching Action Network bet % data...');
@@ -902,6 +1070,10 @@ cron.schedule('*/15 * * * *', async function() {
       return true;
     }).slice(0, 60);
     console.log(newSigs.length + ' new signals, ' + liveSignals.length + ' total active (persisted until game start)');
+
+    // Pinnacle gap detection — refresh every poll
+    sharpGaps = detectPinnacleGaps(games);
+    console.log(sharpGaps.length + ' Pinnacle gaps detected');
   } catch (err) {
     console.log('Cron error: ' + err.message);
   }
@@ -934,6 +1106,11 @@ app.get('/health', function(req, res) {
 
 app.get('/api/signals', function(req, res) {
   res.json({signals:liveSignals,count:liveSignals.length,updated:lastUpdated,games:gamesCache.length});
+});
+
+// Pinnacle gaps — soft books lagging behind the sharp line
+app.get('/api/sharp-gaps', function(req, res) {
+  res.json({gaps: sharpGaps, count: sharpGaps.length, updated: lastUpdated});
 });
 
 app.get('/api/games', function(req, res) {
