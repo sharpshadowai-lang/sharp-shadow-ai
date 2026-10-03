@@ -586,44 +586,45 @@ body{overflow-y:auto}
 
   <div class="dashboard">
 
-    <!-- LEFT: SIGNALS -->
+    <!-- LEFT: SHARP LINE GAPS (Pinnacle benchmark) -->
     <div class="signals-panel mob-active" id="mobileSignalsPanel">
       <div class="panel-header">
-        <div class="ph-title">🔥 SHARP SIGNALS</div>
-        <div class="ph-count" id="sigCount">0 ACTIVE</div>
+        <div class="ph-title">📐 SHARP LINE GAPS</div>
+        <div class="ph-count" id="sigCount">0 GAPS</div>
       </div>
       <div class="signal-filters">
-        <button class="sf-btn active" onclick="filterSigs(this,'all')">ALL SIGNALS</button>
-        <button class="sf-btn" onclick="filterSigs(this,'steam')">🔥 STEAM</button>
-        <button class="sf-btn" onclick="filterSigs(this,'sharp')">⚡ SHARP</button>
+        <button class="sf-btn active" onclick="filterGaps(this,'all')">ALL GAPS</button>
+        <button class="sf-btn" onclick="filterGaps(this,'spread')">SPREADS</button>
+        <button class="sf-btn" onclick="filterGaps(this,'total')">TOTALS</button>
+        <button class="sf-btn" onclick="filterGaps(this,'ml')">MONEYLINE</button>
       </div>
 
-      <!-- HOW TO READ SIGNALS -->
+      <!-- HOW TO READ -->
       <div class="sig-guide">
         <button class="sig-guide-toggle" onclick="toggleSigGuide()">
-          <span>📖 HOW TO READ THESE SIGNALS</span>
+          <span>📖 WHAT IS A SHARP LINE GAP?</span>
           <span id="sigGuideArrow">▼</span>
         </button>
         <div class="sig-guide-body" id="sigGuideBody" style="display:none">
           <div class="sig-guide-item">
-            <div class="sig-guide-label steam-color">🔥 STEAM MOVE</div>
-            <div class="sig-guide-desc">The strongest signal. 3+ books moved the same line in sync — sharp syndicates hit simultaneously. Act fast: the number gets worse as more books follow. Bet the side shown.</div>
+            <div class="sig-guide-label" style="color:var(--cyan)">PINNACLE = SHARP PRICE</div>
+            <div class="sig-guide-desc">Pinnacle is the world's largest sharp-accepting sportsbook. Professional bettors have already moved their lines to the correct price. Pinnacle's line <em>is</em> the market.</div>
           </div>
           <div class="sig-guide-item">
-            <div class="sig-guide-label sharp-color">⚡ SHARP ACTION</div>
-            <div class="sig-guide-desc">A sharp-friendly book (Pinnacle, Circa) or 2+ major books moved the same direction with supporting evidence. Sharp bettors got their money down. Line likely follows at other books.</div>
+            <div class="sig-guide-label" style="color:var(--green)">GAP = +EV OPPORTUNITY</div>
+            <div class="sig-guide-desc">When DraftKings, FanDuel or BetMGM hasn't caught up to Pinnacle yet, that gap is value. You're getting a better number than the sharp market says the line should be. Bet before it closes.</div>
           </div>
           <div class="sig-guide-tip">
-            💡 <strong>Quality over quantity.</strong> We only surface real signals — moves that crossed multiple books or key numbers with meaningful size. If the panel is quiet, the market is quiet. That's by design.
+            💡 <strong>Bigger gap = more edge.</strong> Gaps close fast as soft books adjust. A 1pt spread gap or 20+ cent ML gap is significant. Tap any gap to analyze with S.I.D.E. AI.
           </div>
         </div>
       </div>
 
       <div class="signals-list" id="signalsList">
         <div class="empty-signals">
-          <div class="es-icon">📡</div>
-          <div class="es-title">MONITORING LIVE LINES</div>
-          <div class="es-sub">Tracking <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games across 10+ books.<br><br>We only surface <strong style="color:var(--cyan)">real moves</strong>:<br>3+ books in sync · sharp book first<br>Key number crossings · Notable size<br><br>A quiet panel means the market is quiet.<br>That's the point.</div>
+          <div class="es-icon">📐</div>
+          <div class="es-title">SCANNING FOR GAPS</div>
+          <div class="es-sub">Comparing <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games against<br>Pinnacle's sharp lines.<br><br>Gaps appear when soft books<br>(DK, FD, BetMGM) lag behind<br>the sharp market price.</div>
         </div>
       </div>
     </div>
@@ -1127,31 +1128,36 @@ function animCount(id, target, suffix, duration){
 }
 
 // ===== SIGNALS =====
+var allGaps = [];
+var currentGapFilter = 'all';
+
 async function fetchSignals(){
   try{
-    var r = await fetch('/api/signals');
-    var d = await r.json();
-    allGames = d.games || 0;
-    // Update status
+    // Fetch both signals data (for game count) and Pinnacle gaps
+    var [sigRes, gapRes] = await Promise.all([
+      fetch('/api/signals'),
+      fetch('/api/sharp-gaps')
+    ]);
+    var sigData = await sigRes.json();
+    var gapData = await gapRes.json();
+
+    allGames = sigData.games || 0;
     var statusEl = document.getElementById('appStatusText');
-    if(statusEl) statusEl.textContent = 'LIVE · ' + (d.games || 0) + ' GAMES';
+    if(statusEl) statusEl.textContent = 'LIVE · ' + allGames + ' GAMES';
     var lgc = document.getElementById('liveGameCount');
-    if(lgc) lgc.textContent = (d.games || 0);
-    // Update hero stats
+    if(lgc) lgc.textContent = allGames;
     var hs2 = document.getElementById('hs2');
-    if(hs2) hs2.textContent = d.games || 0;
+    if(hs2) hs2.textContent = allGames;
     var oddsCount = document.getElementById('oddsCount');
-    if(oddsCount) oddsCount.textContent = (d.games || 0) + ' GAMES';
-    if(d.signals && d.signals.length > 0){
-      signals = d.signals;
-      renderSignals();
-      var sc = document.getElementById('sigCount');
-      if(sc) sc.textContent = signals.length + ' ACTIVE';
-      var hs1 = document.getElementById('hs1');
-      if(hs1) hs1.textContent = signals.length;
-    } else {
-      showEmptySignals();
-    }
+    if(oddsCount) oddsCount.textContent = allGames + ' GAMES';
+
+    allGaps = gapData.gaps || [];
+    renderGaps();
+    var sc = document.getElementById('sigCount');
+    if(sc) sc.textContent = allGaps.length + ' GAPS';
+    var hs1 = document.getElementById('hs1');
+    if(hs1) hs1.textContent = allGaps.length;
+
   }catch(e){
     var statusEl = document.getElementById('appStatusText');
     if(statusEl) statusEl.textContent = 'SERVER OFFLINE';
@@ -1161,7 +1167,7 @@ async function fetchSignals(){
 function showEmptySignals(){
   var list = document.getElementById('signalsList');
   if(!list) return;
-  list.innerHTML = '<div class="empty-signals"><div class="es-icon">📡</div><div class="es-title">SCANNING ' + allGames + ' LIVE GAMES</div><div class="es-sub">Monitoring line movement across<br>10+ sportsbooks in real time.<br>Signals appear when sharp money<br>is detected.</div></div>';
+  list.innerHTML = '<div class="empty-signals"><div class="es-icon">📐</div><div class="es-title">SCANNING ' + allGames + ' GAMES</div><div class="es-sub">Comparing lines against<br>Pinnacle\'s sharp price.<br>Gaps appear when soft books<br>lag behind the market.</div></div>';
 }
 
 function toggleSigGuide(){
@@ -1176,73 +1182,76 @@ function toggleSigGuide(){
   }
 }
 
-function filterSigs(btn, type){
+function filterGaps(btn, type){
   document.querySelectorAll('.sf-btn').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');
-  currentSigFilter = type;
-  renderSignals();
+  currentGapFilter = type;
+  renderGaps();
 }
 
-function renderSignals(){
+function renderGaps(){
   var list = document.getElementById('signalsList');
   if(!list) return;
-  var filtered = currentSigFilter === 'all' ? signals : signals.filter(function(s){return s.type === currentSigFilter;});
+
+  var filtered = allGaps;
+  if(currentGapFilter === 'spread') filtered = allGaps.filter(function(g){ return g.market === 'Spread'; });
+  else if(currentGapFilter === 'total') filtered = allGaps.filter(function(g){ return g.market === 'Total'; });
+  else if(currentGapFilter === 'ml') filtered = allGaps.filter(function(g){ return g.market === 'Moneyline'; });
+
   if(filtered.length === 0){
     showEmptySignals();
     return;
   }
-  list.innerHTML = filtered.map(function(s, i){
-    var labelColor = s.type === 'steam' ? 'var(--cyan)' : 'var(--green)';
-    var borderColor = s.type === 'steam' ? 'rgba(0,245,255,.5)' : 'rgba(0,255,136,.5)';
-    var keyNumBadge = s.crossedKey ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(240,180,41,.15);border:1px solid rgba(240,180,41,.4);color:#f0b429;padding:2px 7px;letter-spacing:.5px">⚡ THRU KEY #' + s.crossedKey + '</span>' : '';
-    var sharpBookBadge = s.sharpBookMoved ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);color:var(--green);padding:2px 7px;letter-spacing:.5px">PINNACLE MOVED</span>' : '';
-    return '<div class="signal-card ' + s.type + '" onclick="askEdge(\'Tell me about the ' + s.game + ' ' + s.bet + ' sharp signal and whether I should bet it\')">' +
-      // Header: label + sport
+
+  // Format game time
+  function fmtTime(ct){
+    if(!ct) return '';
+    var d = new Date(ct);
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' +
+           d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  }
+
+  list.innerHTML = filtered.map(function(g){
+    var edgeColor = g.edge >= 1.5 ? 'var(--green)' : g.edge >= 1.0 ? 'var(--cyan)' : 'var(--yellow)';
+    var edgeBorder = g.edge >= 1.5 ? 'rgba(0,255,136,.4)' : g.edge >= 1.0 ? 'rgba(0,245,255,.4)' : 'rgba(240,180,41,.4)';
+    var edgeLabel = g.edge >= 1.5 ? '🔥 STRONG EDGE' : g.edge >= 1.0 ? '⚡ SOLID EDGE' : '👁 MINOR GAP';
+    var scoreW = Math.min(g.score * 10, 100);
+    var scoreColor = g.score >= 8 ? 'var(--green)' : g.score >= 6 ? 'var(--cyan)' : 'var(--yellow)';
+    var safeGame = g.game.replace(/'/g, "\\'");
+    var safeBet = (g.betSide + ' ' + g.betValue + ' ' + g.market + ' at ' + g.book).replace(/'/g, "\\'");
+
+    return '<div class="signal-card" style="border-left:2px solid ' + edgeBorder + ';cursor:pointer" onclick="askEdge(\'Analyze the ' + safeGame + ' — ' + safeBet + ' looks like a sharp gap vs Pinnacle. Should I bet it?\')">' +
       '<div class="sc-top">' +
-        '<div class="sc-type ' + s.type + '" style="font-size:10px;font-weight:800;letter-spacing:.5px">' + (s.sharpLabel || s.type.toUpperCase()) + '</div>' +
-        '<div class="sc-sport">' + s.sport + ' · ' + s.gtime + '</div>' +
+        '<div class="sc-type" style="font-size:10px;font-weight:800;letter-spacing:.5px;color:' + edgeColor + '">' + edgeLabel + '</div>' +
+        '<div class="sc-sport">' + g.sport + '</div>' +
       '</div>' +
-      // Game
-      '<div class="sc-game">' + s.game + '</div>' +
-      // Bet side - bold and clear
-      '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">SHARP SIDE</div>' +
-      '<div class="sc-bet" style="color:' + labelColor + ';font-size:14px;margin-bottom:8px">▸ ' + s.bet + ' <span style="font-size:10px;color:var(--muted);font-family:Share Tech Mono,monospace">(' + s.btype + ')</span></div>' +
-      // Line movement — the key data
-      '<div style="background:rgba(0,0,0,.3);border:1px solid var(--b1);padding:8px 10px;margin-bottom:8px">' +
-        '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">LINE MOVEMENT</div>' +
-        '<div style="display:flex;align-items:center;gap:6px;font-family:Share Tech Mono,monospace">' +
-          '<span style="font-size:9px;color:var(--muted)">OPEN</span>' +
-          '<span style="font-size:14px;font-weight:700;color:var(--text);font-family:Orbitron,sans-serif">' + s.open + '</span>' +
-          '<span style="color:var(--muted);font-size:14px;margin:0 2px">→</span>' +
-          '<span style="font-size:9px;color:var(--muted)">NOW</span>' +
-          '<span style="font-size:14px;font-weight:700;color:' + labelColor + ';font-family:Orbitron,sans-serif">' + s.cur + '</span>' +
-          '<span style="margin-left:auto;font-size:12px;font-weight:700;color:var(--green)">' + (s.movFromOpen ? s.movFromOpen : s.mov) + '</span>' +
+      '<div class="sc-game">' + g.game + '</div>' +
+      '<div style="font-size:10px;color:var(--muted);font-family:Share Tech Mono,monospace;margin-bottom:2px">' + fmtTime(g.commenceTime) + '</div>' +
+
+      // The core data: what to bet and where
+      '<div style="background:rgba(0,0,0,.35);border:1px solid var(--b1);padding:10px;margin:8px 0">' +
+        '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">BET THIS LINE</div>' +
+        '<div style="font-family:Orbitron,sans-serif;font-size:15px;font-weight:700;color:' + edgeColor + ';margin-bottom:4px">' + g.betSide + ' ' + g.betValue + '</div>' +
+        '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--text)">' + g.market + ' · <strong style="color:var(--cyan)">' + g.book + '</strong></div>' +
+        '<div style="margin-top:8px;display:flex;align-items:center;gap:8px">' +
+          '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">PINNACLE</span>' +
+          '<span style="font-family:Orbitron,sans-serif;font-size:12px;color:var(--muted)">' + g.pinnacleValue + '</span>' +
+          '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin:0 4px">→ GAP</span>' +
+          '<span style="font-family:Orbitron,sans-serif;font-size:13px;font-weight:700;color:' + edgeColor + '">' + g.edgeLabel + '</span>' +
         '</div>' +
       '</div>' +
-      // Badges row
-      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">' +
-        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,0,0,.4);border:1px solid var(--b1);color:var(--muted);padding:2px 7px">' + (s.bookCount||2) + ' BOOKS</span>' +
-        keyNumBadge +
-        sharpBookBadge +
-        (s.isRLM ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(179,71,255,.08);border:1px solid rgba(179,71,255,.3);color:var(--purple);padding:2px 7px">↩ FADING PUBLIC</span>' : '') +
-        (s.isSharpMoney ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,245,255,.06);border:1px solid rgba(0,245,255,.2);color:var(--cyan);padding:2px 7px">💰 BIG MONEY IN</span>' : '') +
-      '</div>' +
+
       // Score bar
-      (s.score10 ? (
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
-          '<div style="flex:1;background:rgba(0,0,0,.4);height:3px;border-radius:2px;overflow:hidden">' +
-            '<div style="height:100%;width:' + (s.score10*10) + '%;background:linear-gradient(90deg,' + (s.score10>=8?'var(--green)':s.score10>=6?'var(--cyan)':'var(--yellow)') + ',transparent);transition:width 1s"></div>' +
-          '</div>' +
-          '<span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;color:' + (s.score10>=8?'var(--green)':s.score10>=6?'var(--cyan)':'var(--yellow)') + '">' + s.score10 + '/10</span>' +
-        '</div>'
-      ) : '') +
-      '<div class="sc-footer"><span style="color:var(--muted2)">Tap to analyze with S.I.D.E. AI →</span><span>' + (s.ago || 0) + 'm ago</span></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<div style="flex:1;background:rgba(0,0,0,.4);height:3px;border-radius:2px;overflow:hidden">' +
+          '<div style="height:100%;width:' + scoreW + '%;background:linear-gradient(90deg,' + scoreColor + ',transparent)"></div>' +
+        '</div>' +
+        '<span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;color:' + scoreColor + '">' + g.score + '/10</span>' +
+      '</div>' +
+
+      '<div class="sc-footer"><span style="color:var(--muted2)">Tap to analyze with S.I.D.E. AI →</span></div>' +
     '</div>';
   }).join('');
-  // Animate bars
-  setTimeout(function(){
-    list.querySelectorAll('.sc-bar').forEach(function(b){b.style.width = (b.dataset.w||60) + '%';});
-  }, 100);
 }
 
 // ===== S.I.D.E. AI =====
