@@ -360,33 +360,41 @@ function crossesKeyNumber(fromPt, toPt, sportKey) {
 }
 
 // Minimum point movement before we consider it a real line move (not juice)
+// These are HIGHER thresholds — we only want meaningful moves, not noise
 function minLineMove(sportKey, marketKey) {
-  if (marketKey === 'h2h_ml') return 10;    // MLB moneyline: 10 cents minimum
-  if (marketKey === 'totals') return 0.5;   // 0.5pt minimum on totals
-  return 0.5;                               // 0.5pt minimum on spreads
+  if (marketKey === 'h2h_ml') return 15;    // MLB moneyline: 15 cents minimum (raised from 10)
+  if (marketKey === 'totals') {
+    if (sportKey === 'baseball_mlb') return 0.5;
+    return 1.0;                             // Totals: 1pt minimum (raised from 0.5)
+  }
+  // Football: require at least 1pt poll-to-poll (from-open filter handles the rest)
+  if (sportKey && sportKey.indexOf('americanfootball') !== -1) return 1.0;
+  // NBA/NHL/Soccer: 1pt minimum spread move
+  return 1.0;
 }
 
 // "Notable" threshold — above this is meaningful, below is minor
 function notableLineMove(sportKey, marketKey) {
-  if (marketKey === 'h2h_ml') return 20;    // MLB moneyline: 20+ cents = meaningful
+  if (marketKey === 'h2h_ml') return 25;    // MLB moneyline: 25+ cents = meaningful
   if (marketKey === 'totals') {
-    if (sportKey === 'baseball_mlb') return 0.5; // MLB totals move in 0.5 increments
-    return 1.5;
+    if (sportKey === 'baseball_mlb') return 1.0;
+    return 2.0;
   }
-  // Football: 3.5pt threshold — must cross through key numbers to matter
-  if (sportKey === 'americanfootball_nfl' || sportKey === 'americanfootball_ncaaf') return 3.5;
-  return 1.0;
+  // Football (NFL + NCAAF): 3.0pt threshold — must move a full field goal or more
+  if (sportKey && sportKey.indexOf('americanfootball') !== -1) return 3.0;
+  // NBA/NHL: 2pt spread move is notable
+  return 2.0;
 }
 
 // "Strong" threshold — movement of this size is very significant
 function strongLineMove(sportKey, marketKey) {
-  if (marketKey === 'h2h_ml') return 30;    // MLB moneyline: 30+ cents = strong
+  if (marketKey === 'h2h_ml') return 35;    // MLB moneyline: 35+ cents = strong
   if (marketKey === 'totals') {
-    if (sportKey === 'baseball_mlb') return 1.0;
-    return 2.5;
+    if (sportKey === 'baseball_mlb') return 1.5;
+    return 3.0;
   }
-  if (sportKey === 'americanfootball_nfl' || sportKey === 'americanfootball_ncaaf') return 5.0;
-  return 2.0;
+  if (sportKey && sportKey.indexOf('americanfootball') !== -1) return 5.5;
+  return 3.0;
 }
 
 // Well-known market-making / sharp-friendly sportsbooks that move first
@@ -496,23 +504,28 @@ function classifySharpMove(data) {
   var score10 = Math.min(10, Math.round((score / 22) * 10));
 
   // Classify by total score
-  // Single-book moves cap at POSSIBLE regardless of score
+  // STRICT MODE: Single-book moves are always noise — never surface them
+  // POSSIBLE_SHARP is eliminated from the feed — only real moves shown
   var classification, str;
   if (bookCount <= 1) {
-    if (score >= 5) {
-      classification = 'POSSIBLE_SHARP';
-      str = 3;
-    } else {
-      classification = 'NO_SHARP_EVIDENCE';
-      str = 1;
-    }
+    // Single book = noise, regardless of anything else
+    classification = 'NO_SHARP_EVIDENCE';
+    str = 1;
   } else if (score >= 16) {
     classification = 'CONFIRMED_MARKET_MOVE';
     str = 6;
   } else if (score >= 10) {
-    classification = 'STRONG_SHARP_MOVEMENT';
-    str = 5;
-  } else if (score >= 5) {
+    // STRONG requires at least: 3 books OR (2 books + a sharp book)
+    if (bookCount >= 3 || (bookCount >= 2 && sharpBookMoved)) {
+      classification = 'STRONG_SHARP_MOVEMENT';
+      str = 5;
+    } else {
+      // 2 non-sharp books with score 10-15 = downgrade to POSSIBLE (then filtered)
+      classification = 'POSSIBLE_SHARP';
+      str = 3;
+    }
+  } else if (score >= 6) {
+    // Raised from 5 — requires more evidence
     classification = 'POSSIBLE_SHARP';
     str = 3;
   } else {
@@ -525,10 +538,10 @@ function classifySharpMove(data) {
 
 function getSharpLabel(classification) {
   var labels = {
-    'CONFIRMED_MARKET_MOVE':  '🔥 CONFIRMED MARKET MOVE',
-    'STRONG_SHARP_MOVEMENT':  '⚡ STRONG SHARP MOVEMENT',
-    'POSSIBLE_SHARP':         '📊 POSSIBLE SHARP ACTION',
-    'NO_SHARP_EVIDENCE':      'NO SHARP EVIDENCE'
+    'CONFIRMED_MARKET_MOVE':  '🔥 STEAM MOVE',
+    'STRONG_SHARP_MOVEMENT':  '⚡ SHARP ACTION',
+    'POSSIBLE_SHARP':         '👁 WATCH',
+    'NO_SHARP_EVIDENCE':      'NO SIGNAL'
   };
   return labels[classification] || classification;
 }
@@ -681,12 +694,21 @@ function detectMoves(games) {
       if (md.booksMoved === 0) continue;
 
       var result = classifySharpMove(md);
+      // Only surface CONFIRMED and STRONG — POSSIBLE and below are filtered out
       if (result.classification === 'NO_SHARP_EVIDENCE') continue;
-      // Filter out weak POSSIBLE signals: single book or tiny move from open
-      if (result.classification === 'POSSIBLE_SHARP' && md.booksMoved <= 1) continue;
-      // Football requires at least 3pts total movement to surface any signal
+      if (result.classification === 'POSSIBLE_SHARP') continue;
+
+      // Football spreads (NFL + NCAAF): require 3.0pts total movement from opening line
       var isFootball = md.sportKey && (md.sportKey.indexOf('americanfootball') !== -1);
-      if (isFootball && md.marketKey === 'spreads' && md.maxMovement < 3.0) continue;
+      if (isFootball && md.marketKey === 'spreads') {
+        var openMovForFilter = md.openMovement || 0;
+        if (openMovForFilter < 3.0 && md.maxMovement < 3.0) continue;
+      }
+      // NBA/NHL/Soccer spreads: require 1.5pts from open
+      var isBallsport = md.sportKey && (md.sportKey.indexOf('basketball') !== -1 || md.sportKey.indexOf('icehockey') !== -1 || md.sportKey.indexOf('soccer') !== -1);
+      if (isBallsport && md.marketKey === 'spreads' && md.openMovement < 1.5 && md.maxMovement < 1.5) continue;
+      // Totals: require 2+ books and notable move
+      if (md.marketKey === 'totals' && md.booksMoved < 2) continue;
 
       // Which side is market action on?
       var netDir = md.directionVotes < 0 ? -1 : 1;
