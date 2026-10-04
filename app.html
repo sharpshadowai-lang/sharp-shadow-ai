@@ -586,45 +586,65 @@ body{overflow-y:auto}
 
   <div class="dashboard">
 
-    <!-- LEFT: SHARP LINE GAPS (Pinnacle benchmark) -->
+    <!-- LEFT: SHARP INTEL PANEL -->
     <div class="signals-panel mob-active" id="mobileSignalsPanel">
       <div class="panel-header">
-        <div class="ph-title">📐 SHARP LINE GAPS</div>
-        <div class="ph-count" id="sigCount">0 GAPS</div>
+        <div class="ph-title">⚡ SHARP INTEL</div>
+        <div class="ph-count" id="sigCount">LOADING</div>
       </div>
-      <div class="signal-filters">
-        <button class="sf-btn active" onclick="filterGaps(this,'all')">ALL GAPS</button>
-        <button class="sf-btn" onclick="filterGaps(this,'spread')">SPREADS</button>
-        <button class="sf-btn" onclick="filterGaps(this,'total')">TOTALS</button>
-        <button class="sf-btn" onclick="filterGaps(this,'ml')">MONEYLINE</button>
+      <!-- Panel mode tabs -->
+      <div class="signal-filters" style="border-bottom:1px solid var(--b1)">
+        <button class="sf-btn active" id="tab-moves" onclick="switchPanelTab('moves',this)">🔥 LINE MOVES</button>
+        <button class="sf-btn" id="tab-gaps" onclick="switchPanelTab('gaps',this)">📐 BOOK GAPS</button>
       </div>
 
-      <!-- HOW TO READ -->
+      <!-- LINE MOVES sub-filters -->
+      <div id="moveFilters" class="signal-filters">
+        <button class="sf-btn sf-sub active" onclick="filterSigs(this,'all')">ALL</button>
+        <button class="sf-btn sf-sub" onclick="filterSigs(this,'steam')">🔥 STEAM</button>
+        <button class="sf-btn sf-sub" onclick="filterSigs(this,'sharp')">⚡ SHARP</button>
+      </div>
+
+      <!-- BOOK GAPS sub-filters (hidden initially) -->
+      <div id="gapFilters" class="signal-filters" style="display:none">
+        <button class="sf-btn sf-sub active" onclick="filterGaps(this,'all')">ALL</button>
+        <button class="sf-btn sf-sub" onclick="filterGaps(this,'spread')">SPREADS</button>
+        <button class="sf-btn sf-sub" onclick="filterGaps(this,'total')">TOTALS</button>
+        <button class="sf-btn sf-sub" onclick="filterGaps(this,'ml')">ML</button>
+      </div>
+
+      <!-- Guide collapsible -->
       <div class="sig-guide">
         <button class="sig-guide-toggle" onclick="toggleSigGuide()">
-          <span>📖 WHAT IS A SHARP LINE GAP?</span>
+          <span id="guideTitle">📖 HOW TO READ SIGNALS</span>
           <span id="sigGuideArrow">▼</span>
         </button>
         <div class="sig-guide-body" id="sigGuideBody" style="display:none">
-          <div class="sig-guide-item">
-            <div class="sig-guide-label" style="color:var(--cyan)">PINNACLE = SHARP PRICE</div>
-            <div class="sig-guide-desc">Pinnacle is the world's largest sharp-accepting sportsbook. Professional bettors have already moved their lines to the correct price. Pinnacle's line <em>is</em> the market.</div>
+          <div id="guideMovesContent">
+            <div class="sig-guide-item">
+              <div class="sig-guide-label steam-color">🔥 STEAM MOVE</div>
+              <div class="sig-guide-desc">3+ books moved the same line in sync — sharp syndicates fired simultaneously. The strongest real-time signal. Act fast.</div>
+            </div>
+            <div class="sig-guide-item">
+              <div class="sig-guide-label sharp-color">⚡ SHARP ACTION</div>
+              <div class="sig-guide-desc">Pinnacle or 2+ major books moved together with sharp evidence. Line is moving toward the right side — follow it.</div>
+            </div>
           </div>
-          <div class="sig-guide-item">
-            <div class="sig-guide-label" style="color:var(--green)">GAP = +EV OPPORTUNITY</div>
-            <div class="sig-guide-desc">When DraftKings, FanDuel or BetMGM hasn't caught up to Pinnacle yet, that gap is value. You're getting a better number than the sharp market says the line should be. Bet before it closes.</div>
+          <div id="guideGapsContent" style="display:none">
+            <div class="sig-guide-item">
+              <div class="sig-guide-label" style="color:var(--cyan)">📐 PINNACLE GAP</div>
+              <div class="sig-guide-desc">Pinnacle = the sharp market price. When DraftKings or FanDuel hasn't caught up, that gap is +EV. You get a better number than sharp money already knows is correct.</div>
+            </div>
           </div>
-          <div class="sig-guide-tip">
-            💡 <strong>Bigger gap = more edge.</strong> Gaps close fast as soft books adjust. A 1pt spread gap or 20+ cent ML gap is significant. Tap any gap to analyze with S.I.D.E. AI.
-          </div>
+          <div class="sig-guide-tip">💡 Tap any card to analyze with S.I.D.E. AI</div>
         </div>
       </div>
 
       <div class="signals-list" id="signalsList">
         <div class="empty-signals">
-          <div class="es-icon">📐</div>
-          <div class="es-title">SCANNING FOR GAPS</div>
-          <div class="es-sub">Comparing <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games against<br>Pinnacle's sharp lines.<br><br>Gaps appear when soft books<br>(DK, FD, BetMGM) lag behind<br>the sharp market price.</div>
+          <div class="es-icon">⚡</div>
+          <div class="es-title">SCANNING LINES</div>
+          <div class="es-sub">Tracking <strong id="liveGameCount" style="color:var(--cyan)">0</strong> games<br>across 10+ books.</div>
         </div>
       </div>
     </div>
@@ -1130,10 +1150,24 @@ function animCount(id, target, suffix, duration){
 // ===== SIGNALS =====
 var allGaps = [];
 var currentGapFilter = 'all';
+var currentPanelTab = 'moves'; // 'moves' or 'gaps'
+
+// ===== PANEL TAB SWITCH =====
+function switchPanelTab(tab, btn){
+  currentPanelTab = tab;
+  document.querySelectorAll('#tab-moves,#tab-gaps').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('moveFilters').style.display = tab === 'moves' ? 'flex' : 'none';
+  document.getElementById('gapFilters').style.display  = tab === 'gaps'  ? 'flex' : 'none';
+  document.getElementById('guideMovesContent').style.display = tab === 'moves' ? '' : 'none';
+  document.getElementById('guideGapsContent').style.display  = tab === 'gaps'  ? '' : 'none';
+  document.getElementById('guideTitle').textContent = tab === 'moves' ? '📖 HOW TO READ SIGNALS' : '📖 WHAT IS A BOOK GAP?';
+  if(tab === 'moves') renderSignals();
+  else renderGaps();
+}
 
 async function fetchSignals(){
   try{
-    // Fetch both signals data (for game count) and Pinnacle gaps
     var [sigRes, gapRes] = await Promise.all([
       fetch('/api/signals'),
       fetch('/api/sharp-gaps')
@@ -1151,12 +1185,21 @@ async function fetchSignals(){
     var oddsCount = document.getElementById('oddsCount');
     if(oddsCount) oddsCount.textContent = allGames + ' GAMES';
 
+    if(sigData.signals && sigData.signals.length > 0){
+      signals = sigData.signals;
+    }
     allGaps = gapData.gaps || [];
-    renderGaps();
+
+    // Show count for whichever tab is active
+    var totalIntel = signals.length + allGaps.length;
     var sc = document.getElementById('sigCount');
-    if(sc) sc.textContent = allGaps.length + ' GAPS';
+    if(sc) sc.textContent = signals.length + ' MOVES · ' + allGaps.length + ' GAPS';
     var hs1 = document.getElementById('hs1');
-    if(hs1) hs1.textContent = allGaps.length;
+    if(hs1) hs1.textContent = signals.length;
+
+    // Render active tab
+    if(currentPanelTab === 'moves') renderSignals();
+    else renderGaps();
 
   }catch(e){
     var statusEl = document.getElementById('appStatusText');
@@ -1167,7 +1210,11 @@ async function fetchSignals(){
 function showEmptySignals(){
   var list = document.getElementById('signalsList');
   if(!list) return;
-  list.innerHTML = '<div class="empty-signals"><div class="es-icon">📐</div><div class="es-title">SCANNING ' + allGames + ' GAMES</div><div class="es-sub">Comparing lines against<br>Pinnacle\'s sharp price.<br>Gaps appear when soft books<br>lag behind the market.</div></div>';
+  if(currentPanelTab === 'moves'){
+    list.innerHTML = '<div class="empty-signals"><div class="es-icon">📡</div><div class="es-title">MONITORING ' + allGames + ' GAMES</div><div class="es-sub">We only surface confirmed moves:<br>3+ books in sync · Pinnacle first<br>Key number crossings<br><br>A quiet panel = quiet market.</div></div>';
+  } else {
+    list.innerHTML = '<div class="empty-signals"><div class="es-icon">📐</div><div class="es-title">SCANNING FOR GAPS</div><div class="es-sub">Comparing ' + allGames + ' games<br>against Pinnacle\'s sharp lines.<br>Gaps close fast — act quickly.</div></div>';
+  }
 }
 
 function toggleSigGuide(){
@@ -1182,74 +1229,101 @@ function toggleSigGuide(){
   }
 }
 
+function filterSigs(btn, type){
+  document.querySelectorAll('#moveFilters .sf-sub').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  currentSigFilter = type;
+  renderSignals();
+}
+
 function filterGaps(btn, type){
-  document.querySelectorAll('.sf-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#gapFilters .sf-sub').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');
   currentGapFilter = type;
   renderGaps();
 }
 
+function renderSignals(){
+  var list = document.getElementById('signalsList');
+  if(!list) return;
+  var filtered = currentSigFilter === 'all' ? signals : signals.filter(function(s){return s.type === currentSigFilter;});
+  if(filtered.length === 0){ showEmptySignals(); return; }
+
+  list.innerHTML = filtered.map(function(s){
+    var labelColor = s.type === 'steam' ? 'var(--cyan)' : 'var(--green)';
+    var borderColor = s.type === 'steam' ? 'rgba(0,245,255,.5)' : 'rgba(0,255,136,.5)';
+    var keyNumBadge = s.crossedKey ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(240,180,41,.15);border:1px solid rgba(240,180,41,.4);color:#f0b429;padding:2px 7px;letter-spacing:.5px">⚡ KEY #' + s.crossedKey + '</span>' : '';
+    var sharpBookBadge = s.sharpBookMoved ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);color:var(--green);padding:2px 7px;letter-spacing:.5px">PINNACLE LED</span>' : '';
+    var safeGame = s.game.replace(/'/g,"\\'"); var safeBet = s.bet.replace(/'/g,"\\'");
+    return '<div class="signal-card ' + s.type + '" style="border-left:2px solid ' + borderColor + ';cursor:pointer" onclick="askEdge(\'Sharp signal alert: ' + safeGame + ' — ' + safeBet + ' ' + s.btype + '. Analyze this move and tell me if I should bet it right now.\')">' +
+      '<div class="sc-top">' +
+        '<div class="sc-type ' + s.type + '" style="font-size:10px;font-weight:800;letter-spacing:.5px">' + (s.sharpLabel||s.type.toUpperCase()) + '</div>' +
+        '<div class="sc-sport">' + s.sport + ' · ' + s.gtime + '</div>' +
+      '</div>' +
+      '<div class="sc-game">' + s.game + '</div>' +
+      '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">SHARP SIDE</div>' +
+      '<div class="sc-bet" style="color:' + labelColor + ';font-size:14px;margin-bottom:8px">▸ ' + s.bet + ' <span style="font-size:10px;color:var(--muted)">(' + s.btype + ')</span></div>' +
+      '<div style="background:rgba(0,0,0,.3);border:1px solid var(--b1);padding:8px 10px;margin-bottom:8px">' +
+        '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">LINE MOVEMENT</div>' +
+        '<div style="display:flex;align-items:center;gap:6px;font-family:Share Tech Mono,monospace">' +
+          '<span style="font-size:9px;color:var(--muted)">OPEN</span>' +
+          '<span style="font-size:14px;font-weight:700;color:var(--text);font-family:Orbitron,sans-serif">' + s.open + '</span>' +
+          '<span style="color:var(--muted);font-size:14px;margin:0 2px">→</span>' +
+          '<span style="font-size:9px;color:var(--muted)">NOW</span>' +
+          '<span style="font-size:14px;font-weight:700;color:' + labelColor + ';font-family:Orbitron,sans-serif">' + s.cur + '</span>' +
+          '<span style="margin-left:auto;font-size:12px;font-weight:700;color:var(--green)">' + (s.movFromOpen||s.mov) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">' +
+        '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,0,0,.4);border:1px solid var(--b1);color:var(--muted);padding:2px 7px">' + (s.bookCount||2) + ' BOOKS</span>' +
+        keyNumBadge + sharpBookBadge +
+        (s.isRLM ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(179,71,255,.08);border:1px solid rgba(179,71,255,.3);color:var(--purple);padding:2px 7px">↩ RLM</span>' : '') +
+        (s.isSharpMoney ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,245,255,.06);border:1px solid rgba(0,245,255,.2);color:var(--cyan);padding:2px 7px">💰 BIG MONEY</span>' : '') +
+      '</div>' +
+      (s.score10 ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="flex:1;background:rgba(0,0,0,.4);height:3px;border-radius:2px;overflow:hidden"><div style="height:100%;width:' + (s.score10*10) + '%;background:linear-gradient(90deg,' + (s.score10>=8?'var(--green)':s.score10>=6?'var(--cyan)':'var(--yellow)') + ',transparent)"></div></div><span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;color:' + (s.score10>=8?'var(--green)':s.score10>=6?'var(--cyan)':'var(--yellow)') + '">' + s.score10 + '/10</span></div>' : '') +
+      '<div class="sc-footer"><span style="color:var(--muted2)">Tap → S.I.D.E. AI analysis</span><span>' + (s.ago||0) + 'm ago</span></div>' +
+    '</div>';
+  }).join('');
+}
+
 function renderGaps(){
   var list = document.getElementById('signalsList');
   if(!list) return;
-
   var filtered = allGaps;
   if(currentGapFilter === 'spread') filtered = allGaps.filter(function(g){ return g.market === 'Spread'; });
   else if(currentGapFilter === 'total') filtered = allGaps.filter(function(g){ return g.market === 'Total'; });
   else if(currentGapFilter === 'ml') filtered = allGaps.filter(function(g){ return g.market === 'Moneyline'; });
+  if(filtered.length === 0){ showEmptySignals(); return; }
 
-  if(filtered.length === 0){
-    showEmptySignals();
-    return;
-  }
-
-  // Format game time
   function fmtTime(ct){
     if(!ct) return '';
     var d = new Date(ct);
-    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' +
-           d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+    return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
   }
 
-  list.innerHTML = filtered.map(function(g){
+  list.innerHTML = filtered.slice(0,20).map(function(g){
     var edgeColor = g.edge >= 1.5 ? 'var(--green)' : g.edge >= 1.0 ? 'var(--cyan)' : 'var(--yellow)';
-    var edgeBorder = g.edge >= 1.5 ? 'rgba(0,255,136,.4)' : g.edge >= 1.0 ? 'rgba(0,245,255,.4)' : 'rgba(240,180,41,.4)';
-    var edgeLabel = g.edge >= 1.5 ? '🔥 STRONG EDGE' : g.edge >= 1.0 ? '⚡ SOLID EDGE' : '👁 MINOR GAP';
-    var scoreW = Math.min(g.score * 10, 100);
-    var scoreColor = g.score >= 8 ? 'var(--green)' : g.score >= 6 ? 'var(--cyan)' : 'var(--yellow)';
-    var safeGame = g.game.replace(/'/g, "\\'");
-    var safeBet = (g.betSide + ' ' + g.betValue + ' ' + g.market + ' at ' + g.book).replace(/'/g, "\\'");
-
-    return '<div class="signal-card" style="border-left:2px solid ' + edgeBorder + ';cursor:pointer" onclick="askEdge(\'Analyze the ' + safeGame + ' — ' + safeBet + ' looks like a sharp gap vs Pinnacle. Should I bet it?\')">' +
+    var edgeBorder = g.edge >= 1.5 ? 'rgba(0,255,136,.4)' : g.edge >= 1.0 ? 'rgba(0,245,255,.4)' : 'rgba(240,180,41,.35)';
+    var edgeLabel = g.edge >= 1.5 ? '🔥 BIG EDGE' : g.edge >= 1.0 ? '⚡ SOLID EDGE' : '👁 MINOR GAP';
+    var safeGame = g.game.replace(/'/g,"\\'");
+    var safeBet = (g.betSide + ' ' + g.betValue + ' ' + g.market + ' at ' + g.book).replace(/'/g,"\\'");
+    return '<div class="signal-card" style="border-left:2px solid ' + edgeBorder + ';cursor:pointer" onclick="askEdge(\'Pinnacle gap alert: ' + safeGame + ' — ' + safeBet + ' vs Pinnacle ' + g.pinnacleValue + ' (' + g.edgeLabel + '). Should I bet this gap right now?\')">' +
       '<div class="sc-top">' +
         '<div class="sc-type" style="font-size:10px;font-weight:800;letter-spacing:.5px;color:' + edgeColor + '">' + edgeLabel + '</div>' +
-        '<div class="sc-sport">' + g.sport + '</div>' +
+        '<div class="sc-sport">' + g.sport + ' · ' + fmtTime(g.commenceTime) + '</div>' +
       '</div>' +
       '<div class="sc-game">' + g.game + '</div>' +
-      '<div style="font-size:10px;color:var(--muted);font-family:Share Tech Mono,monospace;margin-bottom:2px">' + fmtTime(g.commenceTime) + '</div>' +
-
-      // The core data: what to bet and where
       '<div style="background:rgba(0,0,0,.35);border:1px solid var(--b1);padding:10px;margin:8px 0">' +
-        '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">BET THIS LINE</div>' +
-        '<div style="font-family:Orbitron,sans-serif;font-size:15px;font-weight:700;color:' + edgeColor + ';margin-bottom:4px">' + g.betSide + ' ' + g.betValue + '</div>' +
-        '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--text)">' + g.market + ' · <strong style="color:var(--cyan)">' + g.book + '</strong></div>' +
-        '<div style="margin-top:8px;display:flex;align-items:center;gap:8px">' +
-          '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">PINNACLE</span>' +
-          '<span style="font-family:Orbitron,sans-serif;font-size:12px;color:var(--muted)">' + g.pinnacleValue + '</span>' +
-          '<span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);margin:0 4px">→ GAP</span>' +
-          '<span style="font-family:Orbitron,sans-serif;font-size:13px;font-weight:700;color:' + edgeColor + '">' + g.edgeLabel + '</span>' +
+        '<div style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:5px">BET AT ' + g.book.toUpperCase() + '</div>' +
+        '<div style="font-family:Orbitron,sans-serif;font-size:15px;font-weight:700;color:' + edgeColor + ';margin-bottom:4px">' + g.betSide + ' ' + g.betValue + ' <span style="font-size:10px;color:var(--muted)">' + g.market + '</span></div>' +
+        '<div style="display:flex;align-items:center;gap:6px;font-family:Share Tech Mono,monospace;font-size:10px">' +
+          '<span style="color:var(--muted)">PINNACLE:</span><span style="color:var(--text)">' + g.pinnacleValue + '</span>' +
+          '<span style="color:var(--muted);margin:0 4px">→ GAP:</span>' +
+          '<span style="font-weight:700;color:' + edgeColor + '">' + g.edgeLabel + '</span>' +
         '</div>' +
       '</div>' +
-
-      // Score bar
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
-        '<div style="flex:1;background:rgba(0,0,0,.4);height:3px;border-radius:2px;overflow:hidden">' +
-          '<div style="height:100%;width:' + scoreW + '%;background:linear-gradient(90deg,' + scoreColor + ',transparent)"></div>' +
-        '</div>' +
-        '<span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;color:' + scoreColor + '">' + g.score + '/10</span>' +
-      '</div>' +
-
-      '<div class="sc-footer"><span style="color:var(--muted2)">Tap to analyze with S.I.D.E. AI →</span></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="flex:1;background:rgba(0,0,0,.4);height:3px;border-radius:2px;overflow:hidden"><div style="height:100%;width:' + Math.min(g.score*10,100) + '%;background:linear-gradient(90deg,' + edgeColor + ',transparent)"></div></div><span style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;color:' + edgeColor + '">' + g.score + '/10</span></div>' +
+      '<div class="sc-footer"><span style="color:var(--muted2)">Tap → S.I.D.E. AI analysis</span></div>' +
     '</div>';
   }).join('');
 }
@@ -1321,7 +1395,10 @@ function sendEdge(){
     ' — local time ' + _dn.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:_userTZ}) + ' ' + _userTZShort +
     ' (timezone: ' + _userTZ + ', UTC offset: ' + (function(){var o=-_dn.getTimezoneOffset();return (o>=0?'+':'')+Math.floor(o/60)+':'+(Math.abs(o)%60+'').padStart(2,'0');})() + ')' +
     ' — UTC: ' + _dn.toISOString();
-  var sys = 'You are S.I.D.E. AI (Sports Intelligence Data Engine), a sharp sports betting analyst. Today is ' + todayForChat + '. You have live web search — use it to get current lines, injuries, and news before answering.\n\nTIMEZONE RULE: The user\'s local timezone is ' + _userTZ + ' (' + _userTZShort + ', UTC' + (function(){var o=-_dn.getTimezoneOffset();return (o>=0?'+':'')+Math.floor(o/60)+':'+(Math.abs(o)%60+'').padStart(2,'0');})() + '). When the user asks for games at a specific time (e.g. "12:30 PM", "1 PM games"), they mean their LOCAL time. Always convert game kickoff times to the user\'s timezone before answering. If a game kicks off at 3:30 PM ET, that is 1:30 PM MST. Always show times in BOTH ET and the user\'s local time so there is no confusion.\n\nMULTI-GAME RULE: When the user asks for picks, bets, or analysis for multiple games (e.g. "college football games tonight", "best bets today", "all sharp plays"), you MUST cover ALL qualifying games — not just one. Search for each game, analyze each one separately, and give a BOTTOM LINE for every single game. Do not stop after the first game. Cover every game that fits the request.\n\nCRITICAL RULE: Always end every response with a clear, direct bottom line. No exceptions. If multiple games, give a BOTTOM LINE for EACH game, then a final summary of your top pick. Format it like this:\n\n🎯 BOTTOM LINE: [BET / LEAN / FADE / PASS] — [specific bet, e.g. "Chiefs -3.5" or "Under 44.5"] at [current line/odds]. [One sentence why.]\n\nDo your analysis first, then ALWAYS give the bottom line(s). The user needs to know what to actually do, not just get information. Be direct like a sharp bettor, not a disclaimer machine. Use probability and edge when relevant but always land on a clear recommendation.\n\nActive sharp signals on the board: ' + (sigCtx || 'None detected yet - lines appear stable');
+  // Build gap context for chat
+  var gapCtx = allGaps.slice(0,5).map(function(g){return g.sport+': '+g.game+' — '+g.betSide+' '+g.betValue+' '+g.market+' at '+g.book+' vs Pinnacle '+g.pinnacleValue+' ('+g.edgeLabel+')';}).join('; ');
+
+  var sys = 'You are S.I.D.E. AI — the sharpest sports betting analyst alive. You think like a winning professional bettor, not a public handicapper. Today is ' + todayForChat + '. You have live web search — ALWAYS use it to verify current lines, injuries, and news before answering. Never answer from memory alone on current events.\n\nTIMEZONE RULE: User timezone is ' + _userTZ + ' (' + _userTZShort + ', UTC' + (function(){var o=-_dn.getTimezoneOffset();return (o>=0?'+':'')+Math.floor(o/60)+':'+(Math.abs(o)%60+'').padStart(2,'0');})() + '). When user mentions a time, it is LOCAL. Always show game times in BOTH ET and local time.\n\nHOW YOU THINK:\n• The opening line is the sharpest number. Movement from open reveals who has bet and what they know.\n• Reverse Line Movement (RLM) = 65%+ public tickets one side, line moves OPPOSITE. This is the sharpest signal in betting — follow the money, not the crowd.\n• Steam moves = sharp syndicates fire simultaneously at multiple books. The strongest real-time signal.\n• Pinnacle is the sharp market. If Pinnacle has Chiefs -6.5 and DraftKings has -5.5, the correct price is -6.5. Bet DraftKings before they adjust.\n• Totals reveal the cleanest sharp action. Public hammers Overs. An UNDER getting steam despite public Over action = professional money.\n• Key numbers in football: 3 and 7. Crossing either is structurally significant.\n• Sharp books: Pinnacle, Circa, Bookmaker. When they move first, the rest follow.\n\nMULTI-GAME RULE: When asked for multiple games — cover ALL of them. Search each one. Give BOTTOM LINE for every game.\n\nRULE: Every response ends with 🎯 BOTTOM LINE stating exactly what to bet, where, and why in one sentence. No hedging, no "it depends." Sharp bettors make decisions — be decisive.\n\nLIVE SHARP SIGNALS (our algorithm): ' + (sigCtx || 'None detected') + '\nLIVE PINNACLE GAPS (book vs sharp price): ' + (gapCtx || 'None detected');
   var chatToken = localStorage.getItem('ss_token') || '';
   fetch('/api/edge', {
     method: 'POST',
@@ -1438,54 +1515,70 @@ async function loadPicks(){
     var _tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
     var _localNow = _nowDate.toLocaleString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short',timeZone:_tzName});
 
-    var PICKS_SYSTEM = `You are S.I.D.E. AI — the house edge algorithm inside Sharp Shadow AI. You think like the books, not the public.
+    // Build Pinnacle gap context for picks
+    var gapContext = '';
+    try {
+      var gapRes2 = await fetch('/api/sharp-gaps');
+      var gapData2 = await gapRes2.json();
+      if(gapData2.gaps && gapData2.gaps.length > 0) {
+        var topGaps = gapData2.gaps.slice(0, 8);
+        gapContext = '\n\n━━━ LIVE PINNACLE GAPS (soft books lagging the sharp price — these are +EV RIGHT NOW) ━━━\n' +
+          topGaps.map(function(g, i) {
+            return (i+1) + '. ' + g.sport + ' | ' + g.game + ' | BET: ' + g.betSide + ' ' + g.betValue + ' ' + g.market + ' at ' + g.book +
+              ' | Pinnacle: ' + g.pinnacleValue + ' | Gap: ' + g.edgeLabel + ' | Edge score: ' + g.score + '/10';
+          }).join('\n') +
+          '\nThese gaps exist RIGHT NOW. The soft book has not caught up to where Pinnacle (sharp market) already is. A gap pick = you are getting the same line the sharp money already moved.';
+      }
+    } catch(e){ gapContext = ''; }
+
+    var PICKS_SYSTEM = `You are S.I.D.E. AI — the sharpest betting algorithm on the market. You have one job: find the 5 best bets today where we have a genuine edge over the sportsbook. Think like a risk manager at Pinnacle — every pick has your name on it.
 
 CURRENT DATE/TIME: ${_localNow} (UTC: ${_isoNow})
-HARD RULE: Any game starting before ${_isoNow} UTC is already over or in progress. DO NOT PICK IT. Zero exceptions.
+IRON RULE: Any game starting before ${_isoNow} UTC is ALREADY STARTED OR OVER. DO NOT PICK IT. Zero exceptions.
 
-━━━ HOW THE HOUSE THINKS ━━━
-The sportsbook does not pick winners. It manages liability. When sharp money hits a side, the book moves the line to protect itself — that movement IS the signal. You are reading the book's own defense mechanism and betting with it.
+━━━ HOW YOU FIND EDGE ━━━
 
-Key truths the house knows that the public ignores:
-1. Public money is predictably wrong. It chases names, narratives, primetime games, and favorites. Books price this in and shade lines to exploit it.
-2. The opening line is the sharpest number. It's set by sharp-side modeling. Where it moves from open TO now reveals who has been betting and what they know.
-3. Reverse Line Movement is the holy grail. 70% of tickets on Team A, line moves toward Team B = sharp syndicates hammering Team B in large volume. Follow the money, not the tickets.
-4. Steam moves = syndicate action. Multiple books moving the same direction within minutes means a coordinated sharp group fired. The move is real.
-5. Key numbers in football are sacred: 3 and 7. NFL games end by 3 (most common) and 7 (second most). A spread crossing either is a major structural signal.
-6. Totals tell the cleanest story. Public hammers Overs every time. A total that DROPS despite public Over action means sharp Unders. The most consistent edge in sports betting.
-7. Situational edges the public misses: teams off a short week, cross-country travel, divisional dogs (know the opponent), teams with nothing to play for, revenge spots.
+TIER 1 SIGNALS (strongest — these win long-term):
+• Reverse Line Movement (RLM): 65%+ public tickets on one side, line moved OPPOSITE direction. Sharp syndicates hammered the other side in large volume. This is the highest-edge signal in sports betting.
+• Steam Move: 3+ books moved the same direction within minutes. Coordinated sharp syndicate action. Follow immediately.
+• Pinnacle Gap: Soft book (DK/FD/BetMGM) line meaningfully worse than Pinnacle's current line. You're getting the number sharp money already knows is correct. Bet the soft book before they adjust.
 
-━━━ ALGORITHM SCORING — output only picks scoring 7+ ━━━
-+5 — Confirmed RLM: 65%+ public tickets one side, line moved opposite direction
-+5 — Algorithm detected: STEAM MOVE (3+ books in sync, confirmed market move)
-+4 — Algorithm detected: SHARP ACTION (notable move, 2+ books, sharp book moved)
-+3 — Line crossed key number 3 or 7 in football (ONLY these two qualify)
-+2 — Line moved 3.5+ pts (football) or 20+ cents (MLB ML) from opening line
-+2 — Key injury to starter on the public's heavily favored side (confirmed, not rumor)
-+2 — Weather: sustained wind 15+ mph or rain for outdoor game — bet the Under
-+1 — Situational spot: divisional dog, off bye, revenge game, travel disadvantage for fav
-+1 — Sharp book (Pinnacle/Circa/Bookmaker) moved first before recreational books followed
-Score 7-9 = TIER 3 (LEAN). Score 10-13 = TIER 2 (SOLID). Score 14+ = TIER 1 (SHARP EDGE).
-Score below 7 = PASS card. Never force a pick. A PASS is a professional output.
+TIER 2 SIGNALS (strong — stack these with Tier 1 for conviction):
+• Line crossed key number 3 or 7 in football (NFL/NCAAF ONLY — these are the two most common game-deciding margins)
+• Sharp book (Pinnacle, Circa, Bookmaker) moved first, recreational books followed
+• Line moved 3.5+ points (football spread) or 25+ cents (MLB moneyline) from opening line
+• Total dropping despite public Over action = sharp Unders (most consistent edge in sports betting)
 
-━━━ OUTPUT FORMAT — output exactly 5 cards, start with TIER: immediately, no intro text ━━━
+TIER 3 SIGNALS (supporting evidence — adds conviction, doesn't stand alone):
+• Key injury to starter on the heavily public-favored side (confirmed, not rumor)
+• Outdoor weather: sustained wind 20+ mph or rain = Under edge
+• Divisional dog: teams that know each other well, underdog has familiarity edge
+• Revenge spot / off bye / travel disadvantage for the public favorite
+
+━━━ SCORING ━━━
+RLM confirmed: +5 | Steam Move: +5 | Pinnacle gap 1pt+: +4 | Sharp book led: +3 | Key number crossed: +3 | 3.5pt+ move from open: +2 | Key injury: +2 | Weather: +2 | Situational: +1
+TIER 1 = 14+ points | TIER 2 = 10-13 | TIER 3 = 7-9 | PASS = below 7
+A PASS is a PROFESSIONAL output. Never force a pick. 3 real picks beats 5 forced ones every time.
+
+━━━ OUTPUT FORMAT — 5 cards, start immediately with TIER:, no intro text ━━━
 
 TIER: [1 / 2 / 3 / PASS]
 SPORT: [NFL / NCAAF / MLB / NBA / NHL]
 GAME: [Away @ Home]
-GAME TIME: [Day, time, timezone — verified AFTER ${_isoNow} UTC]
-BET: [Exact bet: spread ATS / moneyline / total Over or Under with number]
-CURRENT LINE: [current line + juice]
-OPENING LINE: [line at market open]
-LINE MOVEMENT: [exact movement: "Opened X, now Y — Z pts/cents of [sharp/public] action"]
-KEY NUMBER CROSSED: [Yes — crossed 3 / Yes — crossed 7 / No — only 3 and 7 qualify]
-RLM: [Yes — XX% public on [side] but line moved [direction] / No / Unverified]
-SHARP ACTION: [STEAM MOVE (3+ books) / SHARP ACTION (sharp book + move) / NO SHARP EVIDENCE]
-ESTIMATED WIN PROBABILITY: [X%]
-IMPLIED PROBABILITY: [X%]
-ESTIMATED EDGE: [+X% or -X%]
-KEY REASONS: [3 reasons, each citing a specific fact: a line number, a percentage, a confirmed movement, a situational edge. No vague statements.]
-MAIN RISK: [Specific scenario where this loses — be honest]
+GAME TIME: [verified time AFTER ${_isoNow} UTC, local and ET]
+BET: [exact bet with current line/odds]
+CURRENT LINE: [current number + juice]
+OPENING LINE: [line when market opened]
+LINE MOVEMENT: [Opened X → Now Y. Z pts/cents moved. Direction tells the story.]
+KEY NUMBER CROSSED: [Yes — crossed 3 / Yes — crossed 7 / No]
+RLM: [Yes — XX% public on SIDE but line moved OPPOSITE / No / Unverified]
+SHARP ACTION: [STEAM MOVE / SHARP ACTION / PINNACLE GAP (gap size) / NO SHARP EVIDENCE]
+PINNACLE LINE: [Pinnacle's current line if available from gap data above]
+ESTIMATED WIN PROBABILITY: [X% — your honest assessment]
+IMPLIED PROBABILITY: [X% — what the juice says]
+ESTIMATED EDGE: [+X% means value, negative means PASS]
+KEY REASONS: [3 specific facts about THIS game: real line numbers, real percentages, confirmed movements, real situational factors. No generic statements.]
+MAIN RISK: [One honest scenario where this loses]
 CONFIDENCE: [X%]
 VALUE STATUS: [GOOD VALUE / FAIR VALUE / OVERPRICED]
 RECOMMENDATION: [BET / LEAN / PASS]
@@ -1493,14 +1586,14 @@ RECOMMENDATION: [BET / LEAN / PASS]
 ---
 
 ━━━ IRON RULES ━━━
-- Games before ${_isoNow} UTC: SKIP. No exceptions, no matter how good the angle looks.
-- 5 cards total. Fill with PASS if fewer than 5 qualify. A PASS with reasoning is valuable.
-- KEY NUMBERS: 3 and 7 ONLY in football. Nothing else qualifies. Write No for everything else.
-- Spread, ML, or game total ONLY. No props, halves, quarters, or futures.
-- KEY REASONS: Every reason must cite a real fact about this specific game. Generic = PASS.
-- ESTIMATED EDGE negative = OVERPRICED = RECOMMENDATION: PASS. Always.
-- Never invent data. If you cannot verify a line, injury, or split — write "Unverified."
-- Think like the risk manager at Pinnacle. Every pick has your name on it.`;
+- Games before ${_isoNow} UTC = SKIP. No exceptions.
+- Negative ESTIMATED EDGE = RECOMMENDATION must be PASS. Always.
+- 5 cards total. Use PASS cards if fewer than 5 qualify.
+- KEY NUMBERS: 3 and 7 ONLY in football. Mark everything else No.
+- Spreads, ML, game totals ONLY. No props, no halves, no futures.
+- KEY REASONS must cite specific real facts. If you can't verify it, write "Unverified."
+- PINNACLE GAP picks from the gap data above are pre-verified edge — weight them heavily.
+- Think like the sharpest bettor in the world. Be decisive. The user is counting on you.`;
 
     var r = await fetch('/api/edge', {
       method: 'POST',
