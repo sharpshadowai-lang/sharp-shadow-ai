@@ -1531,6 +1531,9 @@ async function loadPicks(){
     var _todayEnd = new Date(_nowDate);
     _todayEnd.setHours(23,59,59,999);
     var _isoTodayEnd = _todayEnd.toISOString();
+    // Today's date in YYYY-MM-DD and human readable for search queries
+    var _todayDateStr = _nowDate.getFullYear() + '-' + String(_nowDate.getMonth()+1).padStart(2,'0') + '-' + String(_nowDate.getDate()).padStart(2,'0');
+    var _todayHuman = _nowDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 
     // Build Pinnacle gap context for picks
     var gapContext = '';
@@ -1551,7 +1554,9 @@ async function loadPicks(){
     var PICKS_SYSTEM = `You are S.I.D.E. AI — the Vegas House Predictive Agent. You operate with the mindset, algorithms, and risk-management principles of a premier Las Vegas sportsbook. Your objective is not to find value for the public — you think exactly like the house. You analyze why Vegas set each line at its specific number and align your picks with the side the house is historically positioned to win on.
 
 CURRENT DATE/TIME: ${_localNow} (UTC: ${_isoNow})
-TODAY'S WINDOW: ONLY games starting AFTER ${_isoNow} UTC AND BEFORE ${_isoTodayEnd} UTC.
+TODAY'S DATE: ${_todayHuman} (${_todayDateStr})
+TODAY'S WINDOW: ONLY games with a start date of ${_todayDateStr} — games starting AFTER ${_isoNow} UTC AND BEFORE ${_isoTodayEnd} UTC.
+⛔ ABSOLUTE DATE FILTER: You may ONLY pick games scheduled for ${_todayDateStr}. Any game on a DIFFERENT date = BANNED from output regardless of other merits.
 IRON RULE: Games before ${_isoNow} UTC = already started — SKIP. Games after ${_isoTodayEnd} UTC = future days — SKIP. TODAY ONLY.
 
 ━━━ VEGAS HOUSE ANALYTICAL FRAMEWORK ━━━
@@ -1626,7 +1631,7 @@ RECOMMENDATION: [BET / LEAN / PASS]
         system: PICKS_SYSTEM,
         messages: [{
           role: 'user',
-          content: 'Current UTC time: ' + _isoNow + '. Local time: ' + _localNow + '. TODAY ENDS AT: ' + _isoTodayEnd + ' UTC.' + liveSignalContext + '\n\nGenerate today\'s TOP 5 sharp money picks. ONLY games starting AFTER ' + _isoNow + ' UTC AND BEFORE ' + _isoTodayEnd + ' UTC. No future days.\n\nResearch steps — do all of these:\n1. Search "NFL NCAAF MLB NBA NHL sharp money lines today ' + _localNow.split(',')[0] + '" — TODAY\'S games only — find all games on today\'s slate with opening and current lines\n2. Search "betting splits reverse line movement sharp action today" — find RLM and public % data\n3. Search "NFL NCAAF MLB NBA NHL injuries starting lineup today" — confirm key injuries\n4. Search "outdoor stadium weather wind forecast today NFL NCAAF MLB" — check weather for outdoor games\n5. Cross-reference our live algorithm signals above with your research — games already flagged by the algorithm score bonus points\n6. Score every candidate game. Output exactly 5 cards: best scoring games as TIER 1/2/3, rest as PASS. Start immediately with TIER: — no intro.'
+          content: 'TODAY\'S DATE: ' + _todayHuman + ' (' + _todayDateStr + '). Current UTC time: ' + _isoNow + '. TODAY ENDS AT: ' + _isoTodayEnd + ' UTC.' + liveSignalContext + '\n\n⛔ HARD RULE: You may ONLY output picks for games on ' + _todayDateStr + '. If a game is scheduled for any other date, it does NOT qualify — do not include it.\n\nGenerate today\'s TOP 5 sharp money picks. ONLY games starting AFTER ' + _isoNow + ' UTC AND BEFORE ' + _isoTodayEnd + ' UTC (date: ' + _todayDateStr + ').\n\nResearch steps — do all of these:\n1. Search "NFL NCAAF MLB NBA NHL lines ' + _todayDateStr + '" to find all games scheduled for ' + _todayDateStr + ' only — ignore any game not on this date\n2. Search "sharp money steam moves ' + _todayDateStr + '" — find sharp action and RLM specifically for ' + _todayHuman + '\n3. Search "betting splits reverse line movement ' + _todayDateStr + ' sharp action" — find RLM and public % data\n4. Search "NFL NCAAF MLB NBA NHL injuries starting lineup ' + _todayDateStr + '" — confirm key injuries for today\n5. Search "outdoor stadium weather wind forecast ' + _todayDateStr + ' NFL NCAAF MLB" — check weather for outdoor games today\n6. Cross-reference our live algorithm signals above with your research — games already flagged by the algorithm score bonus points\n7. BEFORE writing any card: verify the game date is ' + _todayDateStr + '. If not, discard it.\n8. Score every qualifying game. Output exactly 5 cards: best scoring games as TIER 1/2/3, rest as PASS. Start immediately with TIER: — no intro.'
         }]
       })
     });
