@@ -573,6 +573,12 @@ function detectMoves(games) {
     if (gameTs && gameTs <= now) continue;                          // game started
     if (gameTs && gameTs > now + 7 * 24 * 60 * 60 * 1000) continue; // more than 7 days out
 
+    // Time-to-game in minutes — drives late move weighting
+    var minsToGame = gameTs ? (gameTs - now) / 60000 : 9999;
+    var isLateMove    = minsToGame <= 90;   // within 90 min of kickoff
+    var isLastHour    = minsToGame <= 60;   // within 60 min
+    var isLastMinutes = minsToGame <= 30;   // within 30 min — syndicate money window
+
     // Aggregate movement per market across all books
     var marketData = {};
 
@@ -697,21 +703,44 @@ function detectMoves(games) {
       if (md.booksMoved === 0) continue;
 
       var result = classifySharpMove(md);
+
+      // Time-proximity bonus: late sharp moves are more significant — boost their score
+      var timeBonus = 0;
+      if (isLastMinutes) { timeBonus = 6; }       // last 30 min: +6 (biggest window for syndicates)
+      else if (isLastHour) { timeBonus = 4; }     // last 60 min: +4
+      else if (isLateMove) { timeBonus = 2; }     // last 90 min: +2
+      if (timeBonus > 0) {
+        result.score10 = Math.min(10, result.score10 + Math.round(timeBonus / 2));
+        result.str = Math.min(8, result.str + (isLastMinutes ? 2 : 1));
+        // Can upgrade classification if time bonus pushes it over threshold
+        if (result.classification === 'POSSIBLE_SHARP' && (result.score10 >= 5 || isLastHour)) {
+          result.classification = 'STRONG_SHARP_MOVEMENT';
+          result.sharpLabel = '⚡ SHARP ACTION';
+        }
+        if (result.classification === 'STRONG_SHARP_MOVEMENT' && isLastMinutes && result.score10 >= 7) {
+          result.classification = 'CONFIRMED_MARKET_MOVE';
+        }
+      }
+
       // Only surface CONFIRMED and STRONG — POSSIBLE and below are filtered out
+      // Exception: late moves (within 90 min) get surfaced even if POSSIBLE
       if (result.classification === 'NO_SHARP_EVIDENCE') continue;
-      if (result.classification === 'POSSIBLE_SHARP') continue;
+      if (result.classification === 'POSSIBLE_SHARP' && !isLateMove) continue;
 
       // Football spreads (NFL + NCAAF): require 3.0pts total movement from opening line
+      // Late moves: lower threshold to 1.5pts (smaller moves matter more late)
       var isFootball = md.sportKey && (md.sportKey.indexOf('americanfootball') !== -1);
       if (isFootball && md.marketKey === 'spreads') {
         var openMovForFilter = md.openMovement || 0;
-        if (openMovForFilter < 3.0 && md.maxMovement < 3.0) continue;
+        var footballThresh = isLateMove ? 1.5 : 3.0;
+        if (openMovForFilter < footballThresh && md.maxMovement < footballThresh) continue;
       }
-      // NBA/NHL/Soccer spreads: require 1.5pts from open
+      // NBA/NHL/Soccer spreads: require 1.5pts from open (0.5 late)
       var isBallsport = md.sportKey && (md.sportKey.indexOf('basketball') !== -1 || md.sportKey.indexOf('icehockey') !== -1 || md.sportKey.indexOf('soccer') !== -1);
-      if (isBallsport && md.marketKey === 'spreads' && md.openMovement < 1.5 && md.maxMovement < 1.5) continue;
-      // Totals: require 2+ books and notable move
-      if (md.marketKey === 'totals' && md.booksMoved < 2) continue;
+      var ballThresh = isLateMove ? 0.5 : 1.5;
+      if (isBallsport && md.marketKey === 'spreads' && md.openMovement < ballThresh && md.maxMovement < ballThresh) continue;
+      // Totals: require 2+ books (1 book OK if within last 30 min)
+      if (md.marketKey === 'totals' && md.booksMoved < 2 && !isLastMinutes) continue;
 
       // Which side is market action on?
       var netDir = md.directionVotes < 0 ? -1 : 1;
@@ -748,6 +777,22 @@ function detectMoves(games) {
       var openPt = md.openPt !== null ? md.openPt : md.curPt;
       var openMovTotal = md.openMovement || 0;
 
+      // Build late move label
+      var lateMoveLabel = null;
+      var lateMoveUrgency = 0;
+      if (isLastMinutes) {
+        lateMoveLabel = '🚨 FINAL 30 MIN — SYNDICATE WINDOW';
+        lateMoveUrgency = 3;
+      } else if (isLastHour) {
+        lateMoveLabel = '⏰ LAST HOUR SHARP MOVE';
+        lateMoveUrgency = 2;
+      } else if (isLateMove) {
+        lateMoveLabel = '⚡ LATE SHARP MOVE';
+        lateMoveUrgency = 1;
+      }
+
+      var minsToGameRounded = Math.round(minsToGame);
+
       var signal = {
         id: result.classification + '_' + game.id + '_' + mKey + '_' + now,
         type: getSharpType(result.classification),
@@ -775,6 +820,13 @@ function detectMoves(games) {
         str: result.str,
         ago: Math.round(md.minsMoved === 9999 ? 0 : md.minsMoved),
         ts: now,
+        // Late move fields
+        isLateMove: isLateMove,
+        isLastHour: isLastHour,
+        isLastMinutes: isLastMinutes,
+        lateMoveLabel: lateMoveLabel,
+        lateMoveUrgency: lateMoveUrgency,
+        minsToGame: minsToGameRounded,
         // Display fields
         pct: Math.min(98, result.score10 * 10),
         bfor: 0,
@@ -1105,7 +1157,14 @@ app.get('/health', function(req, res) {
 });
 
 app.get('/api/signals', function(req, res) {
-  res.json({signals:liveSignals,count:liveSignals.length,updated:lastUpdated,games:gamesCache.length});
+  // Sort: late moves (by urgency) first, then by score
+  var sorted = liveSignals.slice().sort(function(a, b) {
+    var urgA = a.lateMoveUrgency || 0;
+    var urgB = b.lateMoveUrgency || 0;
+    if (urgB !== urgA) return urgB - urgA;  // higher urgency first
+    return (b.score10 || 0) - (a.score10 || 0); // then by score
+  });
+  res.json({signals: sorted, count: sorted.length, updated: lastUpdated, games: gamesCache.length});
 });
 
 // Pinnacle gaps — soft books lagging behind the sharp line
