@@ -1251,11 +1251,23 @@ function renderSignals(){
 
   list.innerHTML = filtered.map(function(s){
     var labelColor = s.type === 'steam' ? 'var(--cyan)' : 'var(--green)';
-    var borderColor = s.type === 'steam' ? 'rgba(0,245,255,.5)' : 'rgba(0,255,136,.5)';
+    // Late moves get red/orange urgent border
+    var borderColor = s.isLastMinutes ? 'rgba(255,60,60,.8)' :
+                      s.isLastHour    ? 'rgba(255,140,0,.7)' :
+                      s.isLateMove    ? 'rgba(240,180,41,.6)' :
+                      s.type === 'steam' ? 'rgba(0,245,255,.5)' : 'rgba(0,255,136,.5)';
     var keyNumBadge = s.crossedKey ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(240,180,41,.15);border:1px solid rgba(240,180,41,.4);color:#f0b429;padding:2px 7px;letter-spacing:.5px">⚡ KEY #' + s.crossedKey + '</span>' : '';
     var sharpBookBadge = s.sharpBookMoved ? '<span style="font-family:Share Tech Mono,monospace;font-size:9px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);color:var(--green);padding:2px 7px;letter-spacing:.5px">PINNACLE LED</span>' : '';
+    // Late move badge — most prominent element on the card when present
+    var lateMoveBadge = s.lateMoveLabel ? '<div style="font-family:Orbitron,sans-serif;font-size:9px;font-weight:800;letter-spacing:.5px;color:' +
+      (s.isLastMinutes ? '#ff3c3c' : s.isLastHour ? '#ff8c00' : '#f0b429') +
+      ';background:' + (s.isLastMinutes ? 'rgba(255,60,60,.12)' : s.isLastHour ? 'rgba(255,140,0,.1)' : 'rgba(240,180,41,.08)') +
+      ';border:1px solid ' + (s.isLastMinutes ? 'rgba(255,60,60,.4)' : s.isLastHour ? 'rgba(255,140,0,.35)' : 'rgba(240,180,41,.3)') +
+      ';padding:4px 8px;margin-bottom:6px;text-align:center">' + s.lateMoveLabel +
+      (s.minsToGame ? ' · ' + s.minsToGame + ' MIN TO KICKOFF' : '') + '</div>' : '';
     var safeGame = s.game.replace(/'/g,"\\'"); var safeBet = s.bet.replace(/'/g,"\\'");
     return '<div class="signal-card ' + s.type + '" style="border-left:2px solid ' + borderColor + ';cursor:pointer" onclick="askEdge(\'Sharp signal alert: ' + safeGame + ' — ' + safeBet + ' ' + s.btype + '. Analyze this move and tell me if I should bet it right now.\')">' +
+      lateMoveBadge +
       '<div class="sc-top">' +
         '<div class="sc-type ' + s.type + '" style="font-size:10px;font-weight:800;letter-spacing:.5px">' + (s.sharpLabel||s.type.toUpperCase()) + '</div>' +
         '<div class="sc-sport">' + s.sport + ' · ' + s.gtime + '</div>' +
@@ -1503,7 +1515,8 @@ async function loadPicks(){
               ' | Moved: ' + s.mov + (s.movFromOpen ? ' (' + s.movFromOpen + ' from open)' : '') +
               ' | Classification: ' + s.sharpLabel + ' | Score: ' + (s.score10||'?') + '/10' +
               ' | Books: ' + s.bookCount + (s.sharpBookMoved ? ' (sharp book moved)' : '') +
-              (s.crossedKey ? ' | ⚡ CROSSED KEY #' + s.crossedKey : '');
+              (s.crossedKey ? ' | ⚡ CROSSED KEY #' + s.crossedKey : '') +
+              (s.lateMoveLabel ? ' | ⏰ ' + s.lateMoveLabel + (s.minsToGame ? ' (' + s.minsToGame + ' min to kickoff)' : '') : '');
           }).join('\n') +
           '\nThese are confirmed algorithm detections from live odds data. Games with signals already have verified line movement — factor this heavily in your analysis.';
       }
